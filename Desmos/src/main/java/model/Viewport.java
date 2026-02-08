@@ -1,0 +1,58 @@
+package model;
+
+public class Viewport {
+
+    private double xMin;
+    private double xMax;
+    private double yMin;
+    private double yMax;
+
+    public Viewport(double xMin, double xMax, double yMin, double yMax) {
+        this.xMin = xMin;
+        this.xMax = xMax;
+        this.yMin = yMin;
+        this.yMax = yMax;
+    }
+
+    // --- Getters ---
+    public double getXMin() { return xMin; }
+    public double getXMax() { return xMax; }
+    public double getYMin() { return yMin; }
+    public double getYMax() { return yMax; }
+
+    // --- Derived values ---
+    public double getWidth() {
+        return xMax - xMin;
+    }
+
+    public double getHeight() {
+        return yMax - yMin;
+    }
+    public void pan(double dx, double dy) {
+        xMin += dx;
+        xMax += dx;
+        yMin += dy;
+        yMax += dy;
+    }
+    public void zoom(double factor, double centerX, double centerY) {
+        double oldWidth = getWidth();
+        double oldHeight = getHeight();
+
+        double newWidth = oldWidth * factor;
+        double newHeight = oldHeight * factor;
+
+        xMin = centerX - (centerX - xMin) * (newWidth / oldWidth);
+        xMax = xMin + newWidth;
+
+        yMin = centerY - (centerY - yMin) * (newHeight / oldHeight);
+        yMax = yMin + newHeight;
+    }
+
+
+}
+
+
+
+
+
+
