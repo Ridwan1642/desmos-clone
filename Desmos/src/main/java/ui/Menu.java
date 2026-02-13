@@ -11,7 +11,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.control.Button;
 import math.GraphFunction;
-import org.w3c.dom.Text;
+import javafx.scene.shape.Rectangle;
 
 public class Menu extends VBox {
     private VBox functionBox = new VBox(10);
@@ -79,12 +79,17 @@ public class Menu extends VBox {
         TextField input = new TextField();
         input.setPrefWidth(200);
         input.setStyle("-fx-font-size: 18px;");
+        //Color box
+        Rectangle colorBox = new Rectangle(30, 30, color);
+        colorBox.setStroke(Color.BLACK);
+        colorBox.setArcWidth(5);
+        colorBox.setArcHeight(5);
 
         // Hide button
         Button hideButton = new Button("Hide");
         hideButton.setPrefWidth(60);
 
-        javafx.scene.layout.HBox row = new javafx.scene.layout.HBox(5, input, hideButton);
+        javafx.scene.layout.HBox row = new javafx.scene.layout.HBox(5, input, colorBox, hideButton);
         functionBox.getChildren().add(row);
         textFields.add(input);
 

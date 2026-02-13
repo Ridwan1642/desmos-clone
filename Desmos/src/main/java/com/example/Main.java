@@ -1,7 +1,9 @@
 package com.example;
 
 
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import model.Coordinate_System;
 import model.Viewport;
@@ -17,6 +19,7 @@ import ui.Menu;
 
 public class Main extends Application {
     private Menu menu;
+    private boolean menuVisible = true;
     @Override
     public void start(Stage primaryStage) {
 
@@ -37,7 +40,7 @@ public class Main extends Application {
         // --- STEP 5: Layout ---
         BorderPane root = new BorderPane();
 
-// Wrap canvas in a Pane that handles resizing
+        // Wrap canvas in a Pane that handles resizing
         Pane canvasContainer = new Pane(canvas);
         canvas.widthProperty().bind(canvasContainer.widthProperty());
         canvas.heightProperty().bind(canvasContainer.heightProperty());
@@ -66,7 +69,24 @@ public class Main extends Application {
             }
         }, canvas);
 
+        // --- Create hide/show menu button ---
+        Button toggleMenuButton = new Button("Hide Menu");
+        toggleMenuButton.setOnAction(e -> {
+            if (menuVisible) {
+                root.setLeft(null);           // Hide menu
+                toggleMenuButton.setText("Show Menu");
+            } else {
+                root.setLeft(menu);           // Show menu
+                toggleMenuButton.setText("Hide Menu");
+            }
+            menuVisible = !menuVisible;
+        });
 
+        // --- Put button at the top-left corner ---
+        HBox topBar = new HBox(toggleMenuButton);
+        topBar.setSpacing(10);
+        topBar.setStyle("-fx-padding: 5; -fx-background-color: #eee;"); // optional styling
+        root.setTop(topBar);
 
         root.setCenter(canvasContainer);
         root.setLeft(menu);
