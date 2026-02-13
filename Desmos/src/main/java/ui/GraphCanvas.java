@@ -1,4 +1,5 @@
 package ui;
+import javafx.scene.paint.Color;
 import model.Coordinate_System;
 import javafx.scene.canvas.Canvas;
 import rendering.GraphRenderer;
@@ -6,6 +7,7 @@ import rendering.GridRenderer;
 import rendering.AxisRenderer;
 import rendering.GraphRenderer;
 import math.GraphFunction;
+import java.util.ArrayList;
 
 public class GraphCanvas extends Canvas {
 
@@ -20,7 +22,7 @@ public class GraphCanvas extends Canvas {
         this.gridRenderer = gridRenderer;
     }
 
-    private void redraw() {
+    public void redraw() {
         coordSystem.setScreenSize(getWidth(), getHeight());
         getGraphicsContext2D().clearRect(0, 0, getWidth(), getHeight());
 
@@ -67,8 +69,8 @@ public class GraphCanvas extends Canvas {
         setOnScroll(e -> {
             double factor = 1.1; // zoom factor per scroll step
 
-            if (e.getDeltaY() < 0) {
-                factor = 1 / factor; // scroll down → zoom out
+            if (e.getDeltaY() > 0) {
+                factor = 1 / factor; // scroll up -> zoom in
             }
 
             // mouse position in pixels
@@ -88,12 +90,10 @@ public class GraphCanvas extends Canvas {
         redraw();
 
     }
-    public void setFunction(GraphFunction function) {
-        graphRenderer.setFunction(function);
+    public void setFunction(int index,GraphFunction function) {
+        graphRenderer.updateFunction(index, function);
         redraw();
     }
-
-
 
 }
 

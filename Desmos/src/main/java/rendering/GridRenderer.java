@@ -12,7 +12,7 @@ public class GridRenderer {
         this.coordSystem = coordSystem;
     }
 
-    // Compute a “nice” grid step depending on zoom level
+    // Compute a grid step depending on zoom level
     private double computeGridStep() {
         double approxStep = coordSystem.getViewport().getWidth() / 10; // ~10 lines
         double pow10 = Math.pow(10, Math.floor(Math.log10(approxStep)));
