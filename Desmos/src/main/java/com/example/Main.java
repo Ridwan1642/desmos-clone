@@ -13,6 +13,7 @@ import math.GraphFunction;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.scene.layout.Pane;
 import ui.Menu;
@@ -23,28 +24,45 @@ public class Main extends Application {
     @Override
     public void start(Stage primaryStage) {
 
-        // --- STEP 1: Create viewport ---
+        // Create viewport ---
         Viewport viewport = new Viewport(-10, 10, -10, 10);
 
-        // --- STEP 2: Create coordinate system ---
+        //Create coordinate system ---
         Coordinate_System coordSystem = new Coordinate_System(viewport);
 
-        // --- STEP 3: Create canvas ---
+        //Create canvas ---
         GraphCanvas canvas = new GraphCanvas(coordSystem,new GridRenderer(coordSystem));
 
-        // --- STEP 4: Add grid renderer ---
+        //Add grid renderer ---
         GridRenderer gridRenderer = new GridRenderer(coordSystem);
 
 
-        // --- STEP 5: Layout ---
-        // --- STEP 5: Layout ---
+        // Layout ---
         BorderPane root = new BorderPane();
 
-        // Wrap canvas in a Pane that handles resizing
-        Pane canvasContainer = new Pane(canvas);
+        // AnchorPane---
+        AnchorPane canvasContainer = new AnchorPane(canvas);
         canvas.widthProperty().bind(canvasContainer.widthProperty());
         canvas.heightProperty().bind(canvasContainer.heightProperty());
 
+         //floating Home button
+        Button homeButton = new Button("🏡");
+        homeButton.setStyle("-fx-background-color: white; " +
+                "-fx-border-color: #ccc; " +
+                "-fx-border-radius: 5; " +
+                "-fx-background-radius: 5; " +
+                "-fx-cursor: hand; " +
+                "-fx-font-size: 30px; " +
+                "-fx-padding: 5 10 5 10;");
+        AnchorPane.setTopAnchor(homeButton,15.0);
+        AnchorPane.setRightAnchor(homeButton, 15.0);
+
+        homeButton.setOnAction(e->{
+            viewport.reset();
+            canvas.redraw();
+        });
+
+        canvasContainer.getChildren().add(homeButton);
 
          menu = new Menu((inputText, color) -> {
             try {
@@ -55,7 +73,7 @@ public class Main extends Application {
 
                         GraphFunction function = new GraphFunction(inputText.trim(), color);
 
-                        // Store SAME object for hide button
+                        // Store same object for hide button
                         tf.setUserData(function);
 
                         // Update correct index in renderer
@@ -69,7 +87,7 @@ public class Main extends Application {
             }
         }, canvas);
 
-        // --- Create hide/show menu button ---
+        // hide/show menu button ---
         Button toggleMenuButton = new Button("Hide Menu");
         toggleMenuButton.setOnAction(e -> {
             if (menuVisible) {
@@ -82,7 +100,6 @@ public class Main extends Application {
             menuVisible = !menuVisible;
         });
 
-        // --- Put button at the top-left corner ---
         HBox topBar = new HBox(toggleMenuButton);
         topBar.setSpacing(10);
         topBar.setStyle("-fx-padding: 5; -fx-background-color: #eee;"); // optional styling

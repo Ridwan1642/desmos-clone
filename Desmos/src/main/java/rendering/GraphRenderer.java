@@ -60,4 +60,9 @@ public class GraphRenderer {
 
         }
     }
+
+    public void removeFunction(GraphFunction f){
+        if(f != null)
+            functions.remove(f);
+    }
 }

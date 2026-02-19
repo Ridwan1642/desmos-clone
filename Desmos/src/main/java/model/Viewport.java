@@ -48,6 +48,12 @@ public class Viewport {
         yMax = yMin + newHeight;
     }
 
+    public void reset(){
+        this.xMin = -10;
+        this.xMax = 10;
+        this.yMin = -10;
+        this.yMax = 10;
+    }
 
 }
 

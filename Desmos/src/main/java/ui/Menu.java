@@ -7,11 +7,15 @@ import javafx.geometry.Pos;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.control.Slider;
 import javafx.scene.paint.Color;
 import javafx.scene.control.Button;
 import math.GraphFunction;
 import javafx.scene.shape.Rectangle;
+import org.w3c.dom.Text;
 
 public class Menu extends VBox {
     private VBox functionBox = new VBox(10);
@@ -84,24 +88,47 @@ public class Menu extends VBox {
         colorBox.setStroke(Color.BLACK);
         colorBox.setArcWidth(5);
         colorBox.setArcHeight(5);
+        colorBox.setCursor(javafx.scene.Cursor.HAND);
 
-        // Hide button
-        Button hideButton = new Button("Hide");
-        hideButton.setPrefWidth(60);
+        Button colorButton = new Button();
+        colorButton.setGraphic(colorBox);
+        colorButton.setStyle("-fx-background-color: transparent; -fx-padding: 2; -fx-cursor: hand;");
 
-        javafx.scene.layout.HBox row = new javafx.scene.layout.HBox(5, input, colorBox, hideButton);
-        functionBox.getChildren().add(row);
+        //Remove button
+        Button removeButton = new Button("X");
+        removeButton.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+        removeButton.setPrefWidth(40);
+
+        VBox cellBox = new VBox(5);
+        HBox row = new HBox(5, input, colorButton, removeButton);
+        VBox sliderBox = new VBox(5);
+        sliderBox.setPadding(new Insets(0, 0, 0, 10));
+
+        cellBox.getChildren().addAll(row, sliderBox);
+        functionBox.getChildren().add(cellBox); // Add the parent cellBox
         textFields.add(input);
 
-        hideButton.setOnAction(e -> {
-            Object data = input.getUserData();
-            if (data instanceof GraphFunction) {
-                GraphFunction func = (GraphFunction) data;
-                func.setVisible(!func.isVisible());
-                hideButton.setText(func.isVisible() ? "Hide" : "Show");
+        boolean[] isVisible = {true};
 
+        colorButton.setOnAction(e->{
+            isVisible[0] = !isVisible[0];
+            colorBox.setFill(isVisible[0] ? color : Color.WHITE);
+
+            Object data = input.getUserData();
+            if(data instanceof GraphFunction){
+                GraphFunction func = (GraphFunction) data;
+                func.setVisible(isVisible[0]);
                 canvas.redraw();
             }
+        });
+        removeButton.setOnAction(e->{
+            Object data = input.getUserData();
+            if(data instanceof GraphFunction)
+                canvas.removeFunction((GraphFunction) data);
+
+            functionBox.getChildren().remove(cellBox);
+            textFields.remove(input);
+            canvas.redraw();
         });
 
         input.textProperty().addListener((obs, oldText, newText) -> {
@@ -117,6 +144,50 @@ public class Menu extends VBox {
         input.setOnAction(e -> {
             if (onSubmit != null) {
                 onSubmit.accept(input.getText(), color);
+            }
+
+            sliderBox.getChildren().clear();
+            Object data = input.getUserData();
+
+            if (data instanceof GraphFunction) {
+                GraphFunction func = (GraphFunction) data;
+
+                // 3. Loop through parameters to build sliders
+                for (org.mariuszgromada.math.mxparser.Argument arg : func.getParameters()) {
+                    Slider slider = new Slider(-10, 10, 1);
+                    javafx.scene.layout.HBox.setHgrow(slider, Priority.ALWAYS);
+                    slider.setShowTickMarks(true);
+
+                    Label sLabel = new Label(arg.getArgumentName() + " = ");
+                    TextField valueField = new TextField("1.00");
+                    valueField.setPrefWidth(50);
+
+                    slider.valueProperty().addListener((o, oldNum, newNum) -> {
+                        arg.setArgumentValue(newNum.doubleValue());
+                        sLabel.setText(arg.getArgumentName() + " = " + String.format("%.2f", newNum.doubleValue()));
+                        canvas.redraw();
+                    });
+
+                    valueField.setOnAction(evt -> {
+                        try {
+                            double val = Double.parseDouble(valueField.getText());
+
+                            // Dynamically expand the slider bounds if they type a huge/tiny number
+                            if (val < slider.getMin()) slider.setMin(val);
+                            if (val > slider.getMax()) slider.setMax(val);
+
+                            // This automatically triggers the slider listener above to redraw the canvas!
+                            slider.setValue(val);
+                        } catch (NumberFormatException ex) {
+                            // If they type letters or gibberish, reset it back to the safe slider value
+                            valueField.setText(String.format("%.2f", slider.getValue()));
+                        }
+                    });
+
+                    HBox sRow = new HBox(5, sLabel, valueField, slider);
+                    sRow.setAlignment(Pos.CENTER_LEFT);
+                    sliderBox.getChildren().add(sRow);
+                }
             }
         });
 

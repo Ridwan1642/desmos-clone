@@ -95,6 +95,10 @@ public class GraphCanvas extends Canvas {
         redraw();
     }
 
+    public void removeFunction(GraphFunction function){
+        graphRenderer.removeFunction(function);
+        redraw();
+    }
 }
 
 
