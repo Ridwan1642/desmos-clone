@@ -3,20 +3,21 @@ package com.example;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
-import javafx.scene.layout.HBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import model.Coordinate_System;
 import model.Viewport;
+import org.w3c.dom.Text;
 import rendering.GridRenderer;
 import ui.GraphCanvas;
 import math.GraphFunction;
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
-import javafx.scene.layout.Pane;
 import ui.Menu;
+import ui.SlopeCalculator;
 
 public class Main extends Application {
     private Menu menu;
@@ -42,6 +43,8 @@ public class Main extends Application {
 
         // AnchorPane---
         AnchorPane canvasContainer = new AnchorPane(canvas);
+        canvasContainer.setMinWidth(0);
+        canvasContainer.setMinHeight(0);
         canvas.widthProperty().bind(canvasContainer.widthProperty());
         canvas.heightProperty().bind(canvasContainer.heightProperty());
 
@@ -64,19 +67,21 @@ public class Main extends Application {
 
         canvasContainer.getChildren().add(homeButton);
 
-         menu = new Menu((inputText, color) -> {
+
+        menu = new Menu((inputText, color) -> {
             try {
                 for (int i = 0; i < menu.getTextFields().size(); i++) {
                     javafx.scene.control.TextField tf = menu.getTextFields().get(i);
 
-                    if (tf.isFocused()) {
+                    // FIX: Check if the text matches, ignoring focus entirely!
+                    if (tf.getText().trim().equals(inputText.trim())) {
 
                         GraphFunction function = new GraphFunction(inputText.trim(), color);
 
-                        // Store same object for hide button
+                        // Store the object securely
                         tf.setUserData(function);
 
-                        // Update correct index in renderer
+                        // Update the canvas
                         canvas.setFunction(i, function);
 
                         break;
@@ -86,6 +91,14 @@ public class Main extends Application {
                 ex.printStackTrace();
             }
         }, canvas);
+
+        //Slope section
+        SlopeCalculator SlopeCalculator = new SlopeCalculator(menu);
+
+        AnchorPane.setBottomAnchor(SlopeCalculator, 15.0);
+        AnchorPane.setRightAnchor(SlopeCalculator, 15.0);
+
+        canvasContainer.getChildren().add(SlopeCalculator);
 
         // hide/show menu button ---
         Button toggleMenuButton = new Button("Hide Menu");
