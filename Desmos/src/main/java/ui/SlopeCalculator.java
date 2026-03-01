@@ -41,21 +41,20 @@ public class SlopeCalculator extends VBox {
 
     // Error Message label
     public void seterrLabel(String message) {
-        // This prints to your IDE console so you know the logic is working!
 
         error.setText(message);
         error.setStyle("-fx-text-fill: red; -fx-font-size: 14px;");
     }
 
     public void seterrLabel() {
-        seterrLabel(" "); // FIX 2: Use a space, not an empty string
+        seterrLabel(" ");
     }
 
     private void setFunctionState() {
         this.getChildren().clear();
-        seterrLabel(); // Clear any old errors
+        seterrLabel();
 
-        // 1. TOP ROW: Label and Cross Button
+        // Label and Cross
         Label newLabel = new Label("Enter function number:");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -67,7 +66,7 @@ public class SlopeCalculator extends VBox {
         HBox topRow = new HBox(newLabel, spacer, cross);
         topRow.setAlignment(Pos.CENTER_LEFT);
 
-        // 2. INPUT ROW: Text Field and Next Button
+        // Text Field and Next Button
         TextField input = new TextField();
         input.setPrefWidth(60);
         input.setStyle("-fx-font-size: 18px;");
@@ -76,20 +75,19 @@ public class SlopeCalculator extends VBox {
         HBox inputRow = new HBox(10, input, nextBtn);
         inputRow.setAlignment(Pos.CENTER_LEFT);
 
-        // 3. BACK TO BASICS: Simple Try-Catch Logic
+
         javafx.event.EventHandler<javafx.event.ActionEvent> processInput = e -> {
             try {
-                // Parse the number and convert to a computer index (0-based)
                 int funcNo = Integer.parseInt(input.getText().trim()) - 1;
 
-                // Check if the box actually exists in the menu
+                //Check if function exists
                 if (funcNo >= 0 && funcNo < menu.getTextFields().size()) {
 
                     Object data = menu.getTextFields().get(funcNo).getUserData();
 
-                    // Check if a math function is saved inside it
+
                     if (data instanceof math.GraphFunction) {
-                        showCalculationState(funcNo); // Success!
+                        showCalculationState(funcNo);
                     } else {
                         seterrLabel("Function " + (funcNo + 1) + " is empty.");
                     }
@@ -99,31 +97,28 @@ public class SlopeCalculator extends VBox {
                 }
 
             } catch (NumberFormatException ex) {
-                // Catches if they type letters or symbols
                 seterrLabel("Please enter a valid number.");
             }
         };
 
-        // Attach the logic to both the Enter key and the Next button
         input.setOnAction(processInput);
         nextBtn.setOnAction(processInput);
 
-        // 4. ADD EVERYTHING TO SCREEN
         this.getChildren().addAll(topRow, inputRow, error);
     }
 
     private void showCalculationState(int idx) {
         this.getChildren().clear();
-        seterrLabel(); // Clear any previous errors
+        seterrLabel();
 
-        // 1. TOP ROW: Instructions and Back Button
+        //Instructions and Back Button
         Label instruction = new Label("Enter x value:");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button backBtn = new Button("Back");
         backBtn.setStyle("-fx-cursor: hand;");
-        backBtn.setOnAction(e -> setFunctionState()); // Takes the user back to function selection
+        backBtn.setOnAction(e -> setFunctionState());
 
         Button cross = new Button("X");
         cross.setStyle("-fx-text-fill: red; -fx-font-weight: bold; -fx-background-color: transparent; -fx-cursor: hand;");
@@ -132,7 +127,7 @@ public class SlopeCalculator extends VBox {
         HBox topRow = new HBox(instruction, spacer, backBtn,cross);
         topRow.setAlignment(Pos.CENTER_LEFT);
 
-        // 2. INPUT ROW: TextField for x, and a Calculate button
+        //TextField for x, and a Calculate button
         TextField xInput = new TextField();
         xInput.setPrefWidth(60);
         xInput.setMaxWidth(60);
@@ -142,29 +137,22 @@ public class SlopeCalculator extends VBox {
         HBox inputRow = new HBox(10, xInput, calcBtn);
         inputRow.setAlignment(Pos.CENTER_LEFT);
 
-        // 3. RESULT DISPLAY: Where the final slope will be shown
         Label resultLabel = new Label("Slope: ");
         resultLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #2196F3;");
 
-        // 4. THE MATH LOGIC
         javafx.event.EventHandler<javafx.event.ActionEvent> calculateLogic = e -> {
             try {
-                // Parse the user's x input
-                double x = Double.parseDouble(xInput.getText().trim());
 
-                // Grab the exact GraphFunction they selected earlier
+                double x = Double.parseDouble(xInput.getText().trim());
                 GraphFunction function = (GraphFunction) menu.getTextFields().get(idx).getUserData();
 
-                // USE YOUR NEW SLOPE CLASS!
                 math.Slope slopeCalculator = new math.Slope();
                 slopeCalculator.setGraphFunction(function);
 
-                // Check validity using your custom method
                 if (!slopeCalculator.isValidPoint(x)) {
                     resultLabel.setText("Slope: Undefined");
                     seterrLabel("Point is outside the domain.");
                 } else {
-                    // Find the slope using your custom method
                     double calculatedSlope = slopeCalculator.findSlope(x);
 
                     if (Double.isNaN(calculatedSlope)) {
@@ -174,7 +162,7 @@ public class SlopeCalculator extends VBox {
                         seterrLabel();
                     } else {
                         resultLabel.setText(String.format("Slope: %f", calculatedSlope));
-                        seterrLabel(); // Clear any existing errors on success
+                        seterrLabel();
                     }
                 }
 
@@ -183,11 +171,9 @@ public class SlopeCalculator extends VBox {
             }
         };
 
-        // Attach logic to both the Enter key and the Calculate button
         xInput.setOnAction(calculateLogic);
         calcBtn.setOnAction(calculateLogic);
 
-        // 5. ADD EVERYTHING TO THE SCREEN
         this.getChildren().addAll(topRow, inputRow, resultLabel, error);
     }
 }
