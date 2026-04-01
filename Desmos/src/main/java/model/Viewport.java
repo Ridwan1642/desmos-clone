@@ -14,13 +14,24 @@ public class Viewport {
         this.yMax = yMax;
     }
 
-    // --- Getters ---
-    public double getXMin() { return xMin; }
-    public double getXMax() { return xMax; }
-    public double getYMin() { return yMin; }
-    public double getYMax() { return yMax; }
 
-    // --- Derived values ---
+    public double getXMin() {
+        return xMin;
+    }
+
+    public double getXMax() {
+        return xMax;
+    }
+
+    public double getYMin() {
+        return yMin;
+    }
+
+    public double getYMax() {
+        return yMax;
+    }
+
+
     public double getWidth() {
         return xMax - xMin;
     }
@@ -28,12 +39,14 @@ public class Viewport {
     public double getHeight() {
         return yMax - yMin;
     }
+
     public void pan(double dx, double dy) {
         xMin += dx;
         xMax += dx;
         yMin += dy;
         yMax += dy;
     }
+
     public void zoom(double factor, double centerX, double centerY) {
         double oldWidth = getWidth();
         double oldHeight = getHeight();
@@ -48,7 +61,7 @@ public class Viewport {
         yMax = yMin + newHeight;
     }
 
-    public void reset(){
+    public void reset() {
         this.xMin = -10;
         this.xMax = 10;
         this.yMin = -10;

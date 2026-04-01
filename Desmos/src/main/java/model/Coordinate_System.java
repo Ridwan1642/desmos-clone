@@ -14,6 +14,7 @@ public class Coordinate_System {
         this.screenWidth = width;
         this.screenHeight = height;
     }
+
     public double worldToScreenX(double x) {
         return (x - viewport.getXMin()) / viewport.getWidth() * screenWidth;
     }
@@ -22,16 +23,17 @@ public class Coordinate_System {
         return screenHeight
                 - (y - viewport.getYMin()) / viewport.getHeight() * screenHeight;
     }
+
     public double screenToWorldX(double x) {
         return viewport.getXMin() + x / screenWidth * viewport.getWidth();
     }
+
     public double screenToWorldY(double y) {
         return viewport.getYMin()
                 + (screenHeight - y) / screenHeight * viewport.getHeight();
     }
 
-    public Viewport getViewport()
-    {
+    public Viewport getViewport() {
         return viewport;
     }
 

@@ -7,14 +7,16 @@ import javafx.scene.paint.Color;
 public class GridRenderer {
 
     private final Coordinate_System coordSystem;
+    private boolean isDarkMode = false;
+    public void setDarkMode(boolean dark) { this.isDarkMode = dark; }
 
     public GridRenderer(Coordinate_System coordSystem) {
         this.coordSystem = coordSystem;
     }
 
-    // Compute a grid step depending on zoom level
+
     private double computeGridStep() {
-        double approxStep = coordSystem.getViewport().getWidth() / 10; // ~10 lines
+        double approxStep = coordSystem.getViewport().getWidth() / 10;
         double pow10 = Math.pow(10, Math.floor(Math.log10(approxStep)));
         double step;
 
@@ -30,7 +32,7 @@ public class GridRenderer {
         double height = gc.getCanvas().getHeight();
         double step = computeGridStep();
 
-        gc.setStroke(Color.LIGHTGRAY);
+        gc.setStroke(isDarkMode ? Color.web("#444444") : Color.LIGHTGRAY);
         gc.setLineWidth(1);
 
         double xMin = coordSystem.getViewport().getXMin();
@@ -38,15 +40,14 @@ public class GridRenderer {
         double yMin = coordSystem.getViewport().getYMin();
         double yMax = coordSystem.getViewport().getYMax();
 
-        // --- Vertical lines ---
+
         double xStart = Math.ceil(xMin / step) * step;
-        for (double x = xStart; x <= xMax + 1e-10; x += step) { // small epsilon
+        for (double x = xStart; x <= xMax + 1e-10; x += step) {
             double sx = coordSystem.worldToScreenX(x);
             gc.strokeLine(sx, 0, sx, height);
         }
 
 
-        // --- Horizontal lines ---
         double yStart = Math.ceil(yMin / step) * step;
         for (double y = yStart; y <= yMax; y += step) {
             double sy = coordSystem.worldToScreenY(y);

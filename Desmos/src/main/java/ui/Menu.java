@@ -3,6 +3,7 @@ package ui;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
+
 import javafx.geometry.Pos;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
@@ -25,14 +26,14 @@ public class Menu extends VBox {
     private Button addButton;
     private List<Button> hideButtons = new ArrayList<>();
     private ArrayList<Color> colorPalette = new ArrayList<>(List.of(Color.RED, Color.BLUE, Color.GREEN, Color.BLACK, Color.PURPLE));
-    private int nextColor=0;
-    private BiConsumer<String, Color> onSubmit;
+    private int nextColor = 0;
+    private BiConsumer<TextField, Color> onSubmit;
     private GraphCanvas canvas;
 
-    //Menu area creation
-    public Menu(BiConsumer<String,Color> onSubmit, GraphCanvas canvas){
+
+    public Menu(BiConsumer<TextField, Color> onSubmit, GraphCanvas canvas) {
         this.setSpacing(10);
-        this.setPadding(new Insets(5,5,5,5));
+        this.setPadding(new Insets(5, 5, 5, 5));
         this.setPrefWidth(300);
         this.setMaxWidth(300);
 
@@ -40,19 +41,22 @@ public class Menu extends VBox {
         error = new Label();
         this.onSubmit = onSubmit;
         this.canvas = canvas;
-        addButton();
+
         setTextField();
-        this.getChildren().addAll(label, functionBox, error, addButton);
+
+        HBox buttonLayout = createActionButtons();
+
+
+        this.getChildren().addAll(label, functionBox, error, buttonLayout);
     }
 
-    //Color selection
-    public Color nextColor(){
+    public Color nextColor() {
         Color color = colorPalette.get(nextColor);
-        nextColor = (nextColor+1)%colorPalette.size();
+        nextColor = (nextColor + 1) % colorPalette.size();
         return color;
     }
-    //Menu label
-    public void setLabel(){
+
+    public void setLabel() {
         label = new Label();
         label.setText("Enter function: ");
         label.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
@@ -61,29 +65,35 @@ public class Menu extends VBox {
 
     }
 
-    //Add button creation
-    public void addButton(){
-        addButton = new Button();
-        addButton.setText("Add");
+    private HBox createActionButtons() {
+        addButton = new Button("Add Function");
         addButton.setPrefWidth(200);
-        addButton.setStyle("-fx-font-size: 16px;");
-        addButton.setOnAction( e ->{setTextField();});
+        addButton.setStyle("-fx-font-size: 16px; -fx-cursor: hand; -fx-font-weight: bold;");
+
+        addButton.setOnAction(e -> {
+            TextField newField = setTextField();
+            newField.requestFocus(); // Auto-focus the new box when clicked
+        });
+
+        HBox buttonBox = new HBox(addButton);
+        buttonBox.setAlignment(Pos.CENTER);
+        return buttonBox;
     }
 
-    //Error Message label
-    public void seterrLabel(String message){
+
+    public void seterrLabel(String message) {
         error.setText(message);
         error.setStyle("-fx-text-fill: red; -fx-font-size: 14px;");
         error.setAlignment(Pos.BOTTOM_CENTER);
     }
 
-    //Menu textfield
-    public TextField setTextField(){
+
+    public TextField setTextField() {
         Color color = nextColor();
         TextField input = new TextField();
         input.setPrefWidth(200);
         input.setStyle("-fx-font-size: 18px;");
-        //Color box
+
         Rectangle colorBox = new Rectangle(30, 30, color);
         colorBox.setStroke(Color.BLACK);
         colorBox.setArcWidth(5);
@@ -94,7 +104,7 @@ public class Menu extends VBox {
         colorButton.setGraphic(colorBox);
         colorButton.setStyle("-fx-background-color: transparent; -fx-padding: 2; -fx-cursor: hand;");
 
-        //Remove button
+
         Button removeButton = new Button("X");
         removeButton.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
         removeButton.setPrefWidth(40);
@@ -105,25 +115,25 @@ public class Menu extends VBox {
         sliderBox.setPadding(new Insets(0, 0, 0, 10));
 
         cellBox.getChildren().addAll(row, sliderBox);
-        functionBox.getChildren().add(cellBox); // Add the parent cellBox
+        functionBox.getChildren().add(cellBox);
         textFields.add(input);
 
         boolean[] isVisible = {true};
 
-        colorButton.setOnAction(e->{
+        colorButton.setOnAction(e -> {
             isVisible[0] = !isVisible[0];
             colorBox.setFill(isVisible[0] ? color : Color.WHITE);
 
             Object data = input.getUserData();
-            if(data instanceof GraphFunction){
+            if (data instanceof GraphFunction) {
                 GraphFunction func = (GraphFunction) data;
                 func.setVisible(isVisible[0]);
                 canvas.redraw();
             }
         });
-        removeButton.setOnAction(e->{
+        removeButton.setOnAction(e -> {
             Object data = input.getUserData();
-            if(data instanceof GraphFunction)
+            if (data instanceof GraphFunction)
                 canvas.removeFunction((GraphFunction) data);
 
             functionBox.getChildren().remove(cellBox);
@@ -135,7 +145,7 @@ public class Menu extends VBox {
             if (newText.contains("y")) {
                 seterrLabel("Implicit function not allowed");
             } else {
-               seterrLabel("");
+                seterrLabel("");
             }
         });
 
@@ -143,16 +153,21 @@ public class Menu extends VBox {
 
         input.setOnAction(e -> {
             if (onSubmit != null) {
-                onSubmit.accept(input.getText(), color);
+                onSubmit.accept(input, color);
+            }
+            if (textFields.indexOf(input) == textFields.size() - 1 && !input.getText().trim().isEmpty()) {
+                TextField nextInput = setTextField();
+                nextInput.requestFocus();
             }
 
             sliderBox.getChildren().clear();
             Object data = input.getUserData();
 
+
             if (data instanceof GraphFunction) {
                 GraphFunction func = (GraphFunction) data;
 
-                // 3. Loop through parameters to build sliders
+
                 for (org.mariuszgromada.math.mxparser.Argument arg : func.getParameters()) {
                     Slider slider = new Slider(-10, 10, 1);
                     javafx.scene.layout.HBox.setHgrow(slider, Priority.ALWAYS);
@@ -172,14 +187,14 @@ public class Menu extends VBox {
                         try {
                             double val = Double.parseDouble(valueField.getText());
 
-                            // Dynamically expand the slider bounds if they type a huge/tiny number
+
                             if (val < slider.getMin()) slider.setMin(val);
                             if (val > slider.getMax()) slider.setMax(val);
 
-                            // This automatically triggers the slider listener above to redraw the canvas!
+
                             slider.setValue(val);
                         } catch (NumberFormatException ex) {
-                            // If they type letters or gibberish, reset it back to the safe slider value
+
                             valueField.setText(String.format("%.2f", slider.getValue()));
                         }
                     });
@@ -194,8 +209,7 @@ public class Menu extends VBox {
 
         return input;
     }
-
-    public List<TextField> getTextFields(){
+    public List<TextField> getTextFields() {
         return textFields;
     }
 }
