@@ -17,9 +17,10 @@ public class AxisRenderer {
         this.coordSystem = coordSystem;
     }
 
-    public void drawAxes(GraphicsContext gc) {
+    public void drawAxes(GraphicsContext gc, boolean isDark) {
         double width = gc.getCanvas().getWidth();
         double height = gc.getCanvas().getHeight();
+        this.isDarkMode = isDark;
 
         gc.setStroke(isDarkMode ? Color.web("#cccccc") : Color.BLACK);
         gc.setLineWidth(2);

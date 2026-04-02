@@ -29,6 +29,7 @@ public class Menu extends VBox {
     private int nextColor = 0;
     private BiConsumer<TextField, Color> onSubmit;
     private GraphCanvas canvas;
+    private boolean isDarkMode = false;
 
 
     public Menu(BiConsumer<TextField, Color> onSubmit, GraphCanvas canvas) {
@@ -48,6 +49,31 @@ public class Menu extends VBox {
 
 
         this.getChildren().addAll(label, functionBox, error, buttonLayout);
+    }
+
+    public void setDarkMode(boolean dark) {
+        this.isDarkMode = dark;
+
+        for (TextField tf : textFields) {
+            Color originalColor = (Color) tf.getProperties().get("originalColor");
+            Rectangle colorBox = (Rectangle) tf.getProperties().get("colorBox");
+
+            if (originalColor != null && originalColor.equals(Color.BLACK)) {
+                Color newColor = dark ? Color.WHITE : Color.BLACK;
+
+                Object data = tf.getUserData();
+                if (data instanceof GraphFunction) {
+                    GraphFunction func = (GraphFunction) data;
+                    func.setColor(newColor);
+                    if (func.isVisible()) {
+                        colorBox.setFill(newColor);
+                    }
+                } else {
+                    colorBox.setFill(newColor);
+                }
+            }
+        }
+        canvas.setDarkMode(dark);
     }
 
     public Color nextColor() {
@@ -87,18 +113,33 @@ public class Menu extends VBox {
         error.setAlignment(Pos.BOTTOM_CENTER);
     }
 
+    public TextField setTextFieldAvoiding(Color avoidColor) {
+        Color upcomingColor = colorPalette.get(nextColor);
+        // Take dark mode into account so Black/White aren't confused
+        Color upcomingDisplayColor = (upcomingColor.equals(Color.BLACK) && isDarkMode) ? Color.WHITE : upcomingColor;
+
+        if (upcomingDisplayColor.equals(avoidColor)) {
+            nextColor = (nextColor + 1) % colorPalette.size(); // Skip this color
+        }
+        return setTextField();
+    }
 
     public TextField setTextField() {
         Color color = nextColor();
+        Color displayColor = (color.equals(Color.BLACK) && isDarkMode) ? Color.WHITE : color;
+
         TextField input = new TextField();
         input.setPrefWidth(200);
         input.setStyle("-fx-font-size: 18px;");
 
-        Rectangle colorBox = new Rectangle(30, 30, color);
+        Rectangle colorBox = new Rectangle(30, 30, displayColor);
         colorBox.setStroke(Color.BLACK);
         colorBox.setArcWidth(5);
         colorBox.setArcHeight(5);
         colorBox.setCursor(javafx.scene.Cursor.HAND);
+
+        input.getProperties().put("originalColor", color);
+        input.getProperties().put("colorBox", colorBox);
 
         Button colorButton = new Button();
         colorButton.setGraphic(colorBox);
@@ -122,7 +163,8 @@ public class Menu extends VBox {
 
         colorButton.setOnAction(e -> {
             isVisible[0] = !isVisible[0];
-            colorBox.setFill(isVisible[0] ? color : Color.WHITE);
+            Color activeColor = (color.equals(Color.BLACK) && isDarkMode) ? Color.WHITE : color;
+            colorBox.setFill(isVisible[0] ? activeColor : Color.WHITE);
 
             Object data = input.getUserData();
             if (data instanceof GraphFunction) {
@@ -142,18 +184,15 @@ public class Menu extends VBox {
         });
 
         input.textProperty().addListener((obs, oldText, newText) -> {
-            if (newText.contains("y")) {
-                seterrLabel("Implicit function not allowed");
-            } else {
                 seterrLabel("");
-            }
         });
 
         final GraphFunction[] functionHolder = new GraphFunction[1];
 
         input.setOnAction(e -> {
             if (onSubmit != null) {
-                onSubmit.accept(input, color);
+                Color activeColor = (color.equals(Color.BLACK) && isDarkMode) ? Color.WHITE : color;
+                onSubmit.accept(input, activeColor);
             }
             if (textFields.indexOf(input) == textFields.size() - 1 && !input.getText().trim().isEmpty()) {
                 TextField nextInput = setTextField();

@@ -14,7 +14,13 @@ public class Viewport {
         this.yMax = yMax;
     }
 
+    public void setXMin(double x){
+        xMin = x;
+    }
 
+    public void setXMax(double xmax){
+        xMax = xmax;
+    }
     public double getXMin() {
         return xMin;
     }

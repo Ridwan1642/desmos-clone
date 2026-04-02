@@ -27,11 +27,11 @@ public class GridRenderer {
         return step;
     }
 
-    public void drawGrid(GraphicsContext gc) {
+    public void drawGrid(GraphicsContext gc, boolean isDark) {
         double width = gc.getCanvas().getWidth();
         double height = gc.getCanvas().getHeight();
         double step = computeGridStep();
-
+        this.isDarkMode = isDark;
         gc.setStroke(isDarkMode ? Color.web("#444444") : Color.LIGHTGRAY);
         gc.setLineWidth(1);
 

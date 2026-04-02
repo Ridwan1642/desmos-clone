@@ -37,5 +37,18 @@ public class Coordinate_System {
         return viewport;
     }
 
+    public void enforceAspectRatio(double screenW, double screenH) {
+        if (screenW <= 0 || screenH <= 0) return;
 
+        double targetRatio = screenW / screenH;
+        double currentHeight = viewport.getHeight();
+
+        // Adjust the Math X-bounds so the ratio perfectly matches the screen pixels
+        double newWidth = currentHeight * targetRatio;
+        double centerX = (viewport.getXMin() + viewport.getXMax()) / 2.0;
+
+        // We need to add setters to Viewport for this!
+        viewport.setXMin(centerX - (newWidth / 2.0));
+        viewport.setXMax(centerX + (newWidth / 2.0));
+    }
 }

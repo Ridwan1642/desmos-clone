@@ -19,11 +19,15 @@ public class SlopeCalculator extends VBox {
     public SlopeCalculator(Menu menu) {
         this.menu = menu;
         this.error = new Label();
-        this.error.setMinHeight(25);
-        this.error.setPrefHeight(25);
+        this.error.setMinHeight(30); // Increased height
+        this.error.setPrefHeight(30);
         this.error.setAlignment(Pos.BOTTOM_CENTER);
-        this.setStyle("-fx-background-color: white; -fx-padding: 15;");
-        this.setSpacing(10);
+
+        // Increased overall padding and explicitly set preferred width/height
+        this.setStyle("-fx-background-color: white; -fx-padding: 25;");
+        this.setSpacing(15); // Increased spacing between elements
+        this.setPrefWidth(350);
+        this.setPrefHeight(250);
 
         // Skip idle state, go straight to function input
         setFunctionState();
@@ -31,7 +35,8 @@ public class SlopeCalculator extends VBox {
 
     public void seterrLabel(String message) {
         error.setText(message);
-        error.setStyle("-fx-text-fill: red; -fx-font-size: 14px;");
+        // Slightly larger error text
+        error.setStyle("-fx-text-fill: red; -fx-font-size: 15px;");
     }
 
     public void seterrLabel() {
@@ -43,17 +48,22 @@ public class SlopeCalculator extends VBox {
         seterrLabel();
 
         Label newLabel = new Label("Enter function number:");
-        newLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        // Increased font size
+        newLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
         HBox topRow = new HBox(newLabel);
         topRow.setAlignment(Pos.CENTER_LEFT);
-        topRow.setPadding(new javafx.geometry.Insets(0, 0, 10, 0));
+        topRow.setPadding(new javafx.geometry.Insets(0, 0, 15, 0));
 
         TextField input = new TextField();
-        input.setPrefWidth(60);
-        input.setStyle("-fx-font-size: 16px;");
+        // Increased width and font size of the input box
+        input.setPrefWidth(90);
+        input.setStyle("-fx-font-size: 18px;");
 
         Button nextBtn = new Button("Next");
-        HBox inputRow = new HBox(10, input, nextBtn);
+        // Scaled up the button
+        nextBtn.setStyle("-fx-font-size: 16px; -fx-padding: 5 15 5 15;");
+
+        HBox inputRow = new HBox(15, input, nextBtn);
         inputRow.setAlignment(Pos.CENTER_LEFT);
 
         javafx.event.EventHandler<javafx.event.ActionEvent> processInput = e -> {
@@ -86,29 +96,37 @@ public class SlopeCalculator extends VBox {
         seterrLabel();
 
         Label instruction = new Label("Enter x value:");
-        instruction.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        // Increased font size
+        instruction.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button backBtn = new Button("Back");
-        backBtn.setStyle("-fx-cursor: hand;");
+        // Scaled up back button
+        backBtn.setStyle("-fx-cursor: hand; -fx-font-size: 14px;");
         backBtn.setOnAction(e -> setFunctionState());
 
         HBox topRow = new HBox(instruction, spacer, backBtn);
         topRow.setAlignment(Pos.CENTER_LEFT);
-        topRow.setPadding(new javafx.geometry.Insets(0, 0, 10, 0));
+        topRow.setPadding(new javafx.geometry.Insets(0, 0, 15, 0));
 
         TextField xInput = new TextField();
-        xInput.setPrefWidth(60);
-        xInput.setStyle("-fx-font-size: 16px;");
+        // Increased width and font size
+        xInput.setPrefWidth(90);
+        xInput.setStyle("-fx-font-size: 18px;");
 
         Button calcBtn = new Button("Calculate");
+        calcBtn.setStyle("-fx-font-size: 16px; -fx-padding: 5 10 5 10;");
+
         CheckBox drawTangentBox = new CheckBox("Draw Tangent");
-        HBox inputRow = new HBox(10, xInput, calcBtn, drawTangentBox);
+        drawTangentBox.setStyle("-fx-font-size: 15px;");
+
+        HBox inputRow = new HBox(15, xInput, calcBtn, drawTangentBox);
         inputRow.setAlignment(Pos.CENTER_LEFT);
 
         Label resultLabel = new Label("Slope: ");
-        resultLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #2196F3;");
+        // Made the result text significantly larger and more prominent
+        resultLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2196F3;");
 
         javafx.event.EventHandler<javafx.event.ActionEvent> calculateLogic = e -> {
             try {
@@ -150,7 +168,7 @@ public class SlopeCalculator extends VBox {
                                 equation = String.format(java.util.Locale.US, "%.4f*x%s", calculatedSlope, bStr);
                             }
 
-                            TextField newRow = menu.setTextField();
+                            TextField newRow = menu.setTextFieldAvoiding(function.getColor());
                             newRow.setText(equation);
                             newRow.fireEvent(new ActionEvent(ActionEvent.ACTION, newRow));
                             drawTangentBox.setSelected(false);
@@ -165,6 +183,7 @@ public class SlopeCalculator extends VBox {
         xInput.setOnAction(calculateLogic);
         calcBtn.setOnAction(calculateLogic);
 
+        VBox.setMargin(resultLabel, new javafx.geometry.Insets(10, 0, 0, 0));
         this.getChildren().addAll(topRow, inputRow, resultLabel, error);
     }
 }

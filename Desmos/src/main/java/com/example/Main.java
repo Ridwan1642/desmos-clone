@@ -11,6 +11,9 @@ import ui.GraphCanvas;
 import math.GraphFunction;
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import ui.IntegralCalculator;
@@ -22,29 +25,75 @@ import javafx.event.ActionEvent;
 public class Main extends Application {
     private Menu menu;
     private boolean menuVisible = true;
-    private boolean isDarkMode = false; // Global theme tracker
+    private boolean isDarkMode = false;
 
     @Override
     public void start(Stage primaryStage) {
         Viewport viewport = new Viewport(-10, 10, -10, 10);
         Coordinate_System coordSystem = new Coordinate_System(viewport);
 
+
         GridRenderer gridRenderer = new GridRenderer(coordSystem);
         GraphCanvas canvas = new GraphCanvas(coordSystem, gridRenderer);
 
-        BorderPane root = new BorderPane();
-        AnchorPane canvasContainer = new AnchorPane(canvas);
+
+        Canvas overlayCanvas = new Canvas();
+        overlayCanvas.setMouseTransparent(true); // Let clicks pass through to the GraphCanvas for panning!
+
+        Canvas mathCanvas = new Canvas();
+        mathCanvas.setMouseTransparent(true);
+        canvas.setCanvases(mathCanvas, overlayCanvas); // Hand it to the controller
+
+        // Stack them: Graph on bottom, Overlay on top
+        StackPane canvasLayers = new StackPane(canvas, mathCanvas, overlayCanvas);
+
+        // Bind both canvases to the StackPane
+        canvas.widthProperty().bind(canvasLayers.widthProperty());
+        canvas.heightProperty().bind(canvasLayers.heightProperty());
+        mathCanvas.widthProperty().bind(canvasLayers.widthProperty());
+        mathCanvas.heightProperty().bind(canvasLayers.heightProperty());
+        overlayCanvas.widthProperty().bind(canvasLayers.widthProperty());
+        overlayCanvas.heightProperty().bind(canvasLayers.heightProperty());
+
+        AnchorPane canvasContainer = new AnchorPane(canvasLayers);
         canvasContainer.setMinWidth(0);
         canvasContainer.setMinHeight(0);
-        canvas.widthProperty().bind(canvasContainer.widthProperty());
-        canvas.heightProperty().bind(canvasContainer.heightProperty());
+        canvasLayers.prefWidthProperty().bind(canvasContainer.widthProperty());
+        canvasLayers.prefHeightProperty().bind(canvasContainer.heightProperty());
+
+        BorderPane root = new BorderPane();
+
+        canvas.setOnMouseMoved(e -> {
+            GraphicsContext gc = overlayCanvas.getGraphicsContext2D();
+            gc.clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
+
+            double worldX = coordSystem.screenToWorldX(e.getX());
+            double worldY = coordSystem.screenToWorldY(e.getY());
+
+            gc.setFill(isDarkMode ? Color.WHITE : Color.BLACK);
+            // Format to 2 decimal places for a cleaner look
+            String coords = String.format("(%.2f, %.2f)", worldX, worldY);
+            gc.fillText(coords, e.getX() + 15, e.getY() - 10);
+
+            // Draw a tiny crosshair
+            gc.setStroke(isDarkMode ? Color.LIGHTGRAY : Color.DARKGRAY);
+            gc.setLineWidth(1);
+            gc.strokeLine(e.getX() - 5, e.getY(), e.getX() + 5, e.getY());
+            gc.strokeLine(e.getX(), e.getY() - 5, e.getX(), e.getY() + 5);
+        });
+
+        // Clear the hover text when the mouse leaves the canvas
+        canvas.setOnMouseExited(e -> {
+            overlayCanvas.getGraphicsContext2D().clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
+        });
+
 
         Button homeButton = new Button("🏡");
         homeButton.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 30px; -fx-padding: 5 10 5 10;");
         AnchorPane.setTopAnchor(homeButton, 15.0);
         AnchorPane.setRightAnchor(homeButton, 15.0);
         homeButton.setOnAction(e -> {
-            viewport.reset();
+            viewport.reset(); // Assuming you have a reset method in Viewport
             canvas.redraw();
         });
         canvasContainer.getChildren().add(homeButton);
@@ -63,7 +112,7 @@ public class Main extends Application {
             }
         }, canvas);
 
-        // --- TRUE POPUP WINDOWS ---
+        // --- POPUP WINDOWS ---
         IntegralCalculator integralCalculator = new IntegralCalculator(menu, canvas);
         Stage integralStage = new Stage();
         integralStage.setTitle("Area Calculator");
@@ -111,7 +160,7 @@ public class Main extends Application {
         });
 
         // --- THEME LOGIC ---
-        Scene scene = new Scene(root, 800, 600); // Created early so we can apply styles to it
+        Scene scene = new Scene(root, 800, 600);
 
         themeBtn.setOnAction(e -> {
             isDarkMode = !isDarkMode;
@@ -134,8 +183,9 @@ public class Main extends Application {
                 System.out.println("Could not find dark-theme.css in the resources folder!");
             }
 
-            // Tell the math canvas to invert colors
-            canvas.setDarkMode(isDarkMode);
+            // Optional: If you created a setDarkMode in GraphCanvas
+             canvas.setDarkMode(isDarkMode);
+             menu.setDarkMode(isDarkMode);
         });
 
         Region spacer = new Region();
@@ -160,10 +210,10 @@ public class Main extends Application {
 
         bestFitBtn.setOnAction(e -> {
             BestFitDialog dialog = new BestFitDialog();
-
-            // Inject dark mode into the dialog if active!
             if (isDarkMode) {
-                dialog.getDialogPane().getStylesheets().add(getClass().getResource("/dark-theme.css").toExternalForm());
+                try {
+                    dialog.getDialogPane().getStylesheets().add(getClass().getResource("/dark-theme.css").toExternalForm());
+                } catch (Exception ex) { }
             }
 
             dialog.showAndWait().ifPresent(equation -> {
