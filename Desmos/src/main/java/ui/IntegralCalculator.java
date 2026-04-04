@@ -14,6 +14,7 @@ public class IntegralCalculator extends VBox {
     private Menu menu;
     private GraphCanvas canvas;
     private Label error;
+    private boolean isDarkMode = false;
 
     public IntegralCalculator(Menu menu, GraphCanvas canvas) {
         this.menu = menu;
@@ -23,17 +24,43 @@ public class IntegralCalculator extends VBox {
         this.error.setPrefHeight(25);
         this.error.setAlignment(Pos.BOTTOM_CENTER);
 
-        // Removed the border since it will be in its own window now
-        this.setStyle("-fx-background-color: white; -fx-padding: 15;");
         this.setSpacing(10);
-
-        // Instantly show the inputs, skipping the idle state!
+        setDarkMode(false);
         showInputState();
+    }
+
+    public void setDarkMode(boolean dark) {
+        this.isDarkMode = dark;
+        this.setStyle(dark ? "-fx-background-color: #404040; -fx-padding: 15;" : "-fx-background-color: white; -fx-padding: 15;");
+        applyTheme(this);
+    }
+
+    private void applyTheme(javafx.scene.Parent parent) {
+        String textFill = isDarkMode ? "white" : "black";
+        String fieldBg = isDarkMode ? "black" : "white";
+        String border = isDarkMode ? "-fx-border-color: #555; -fx-border-radius: 3;" : "-fx-border-color: #ccc; -fx-border-radius: 3;";
+
+        for (javafx.scene.Node node : parent.getChildrenUnmodifiable()) {
+            if (node instanceof Label) {
+                Label l = (Label) node;
+                if (l == error) {
+                    l.setStyle("-fx-text-fill: #ff6b6b; -fx-font-size: 14px;");
+                } else if (l.getText().startsWith("Area")) {
+                    l.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: " + (isDarkMode ? "#E040FB" : "#9C27B0") + ";");
+                } else {
+                    l.setStyle("-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: " + textFill + ";");
+                }
+            } else if (node instanceof TextField) {
+                ((TextField) node).setStyle("-fx-background-color: " + fieldBg + "; -fx-text-fill: " + textFill + "; " + border);
+            } else if (node instanceof javafx.scene.Parent) {
+                applyTheme((javafx.scene.Parent) node);
+            }
+        }
     }
 
     private void setErrLabel(String message) {
         error.setText(message);
-        error.setStyle("-fx-text-fill: red; -fx-font-size: 14px;");
+        error.setStyle("-fx-text-fill: " + (isDarkMode ? "#ff6b6b" : "red") + "; -fx-font-size: 14px;");
     }
 
     private void showInputState() {
@@ -41,10 +68,9 @@ public class IntegralCalculator extends VBox {
         setErrLabel("");
 
         Label title = new Label("Area Between Curves");
-        title.setStyle("-fx-font-weight: bold; -fx-font-size: 16px;");
         HBox topRow = new HBox(title);
         topRow.setAlignment(Pos.CENTER_LEFT);
-        topRow.setPadding(new javafx.geometry.Insets(0, 0, 10, 0)); // Space below title
+        topRow.setPadding(new javafx.geometry.Insets(0, 0, 10, 0));
 
         TextField f1Input = new TextField();
         f1Input.setPromptText("Func 1 (e.g., 1)");
@@ -64,7 +90,6 @@ public class IntegralCalculator extends VBox {
         btnRow.setAlignment(Pos.CENTER_LEFT);
 
         Label resultLabel = new Label("Area: ");
-        resultLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #9C27B0;");
 
         calcBtn.setOnAction(e -> {
             try {
@@ -118,6 +143,7 @@ public class IntegralCalculator extends VBox {
         });
 
         this.getChildren().addAll(topRow, f1Input, f2Input, boundsRow, btnRow, resultLabel, error);
+        applyTheme(this);
     }
 
     private double calculateNumericalArea(GraphFunction f1, GraphFunction f2, double a, double b) {

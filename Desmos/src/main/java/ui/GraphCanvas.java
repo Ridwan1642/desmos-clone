@@ -10,6 +10,7 @@ import rendering.AxisRenderer;
 import math.GraphFunction;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.text.Font;
+import javafx.scene.transform.Scale;
 
 public class GraphCanvas extends Canvas {
 
@@ -18,7 +19,6 @@ public class GraphCanvas extends Canvas {
     private AxisRenderer axisRenderer;
     private GraphRenderer graphRenderer;
 
-    // The Glass Panes
     private Canvas mathCanvas;
     private Canvas overlayCanvas;
 
@@ -28,7 +28,8 @@ public class GraphCanvas extends Canvas {
     private boolean isDarkMode = false;
 
     private double totalDragX = 0, totalDragY = 0;
-    private javafx.animation.PauseTransition zoomTimer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(150));
+
+    private javafx.animation.PauseTransition zoomTimer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(50));
 
     public GraphCanvas(Coordinate_System coordSystem, GridRenderer gridRenderer) {
         this.coordSystem = coordSystem;
@@ -50,15 +51,13 @@ public class GraphCanvas extends Canvas {
         setOnMousePressed(e -> {
             lastMouseX = e.getX();
             lastMouseY = e.getY();
-            totalDragX = 0;
-            totalDragY = 0;
         });
 
         setOnMouseMoved(e -> {
             currentMouseX = e.getX();
             currentMouseY = e.getY();
             isMouseOnCanvas = true;
-            drawMouseCoordinates(); // Draw to glass pane, NOT full redraw!
+            drawMouseCoordinates();
         });
 
         setOnMouseExited(e -> {
@@ -93,10 +92,6 @@ public class GraphCanvas extends Canvas {
         });
 
         setOnMouseReleased(e -> {
-            if (mathCanvas != null) {
-                mathCanvas.setTranslateX(0);
-                mathCanvas.setTranslateY(0);
-            }
             redrawMath();
         });
 
@@ -109,7 +104,12 @@ public class GraphCanvas extends Canvas {
             coordSystem.getViewport().zoom(factor, worldX, worldY);
 
             redrawGridOnly();
-            if(mathCanvas != null) mathCanvas.getGraphicsContext2D().clearRect(0,0,getWidth(),getHeight());
+
+            if (mathCanvas != null) {
+                double visualFactor = 1.0 / factor;
+                mathCanvas.getTransforms().add(new Scale(visualFactor, visualFactor, e.getX(), e.getY()));
+            }
+
             drawMouseCoordinates();
             zoomTimer.playFromStart();
         });
@@ -125,6 +125,11 @@ public class GraphCanvas extends Canvas {
     public void setDarkMode(boolean dark) {
         this.isDarkMode = dark;
         redraw();
+    }
+
+    public void addTangentPoint(double x, double y, Color color) {
+        graphRenderer.addTangentPoint(x, y, color);
+        redrawMath();
     }
 
     public void setGridRenderer(GridRenderer gridRenderer) {
@@ -148,13 +153,20 @@ public class GraphCanvas extends Canvas {
         gc.setFill(isDarkMode ? Color.web("#1e1e1e") : Color.WHITE);
         gc.fillRect(0, 0, getWidth(), getHeight());
 
-        if (gridRenderer != null) gridRenderer.drawGrid(gc, isDarkMode); // Pass dark mode flag
-        if (axisRenderer != null) axisRenderer.drawAxes(gc, isDarkMode); // Pass dark mode flag
+        if (gridRenderer != null) gridRenderer.drawGrid(gc, isDarkMode);
+        if (axisRenderer != null) axisRenderer.drawAxes(gc, isDarkMode);
     }
 
     private void redrawMath() {
         if (mathCanvas != null) {
-            graphRenderer.drawGraph(mathCanvas.getGraphicsContext2D());
+            // Pass the dark mode flag so the renderer knows how to color the inside of the dots
+            graphRenderer.drawGraph(mathCanvas.getGraphicsContext2D(), isDarkMode, () -> {
+                mathCanvas.getTransforms().clear();
+                mathCanvas.setTranslateX(0);
+                mathCanvas.setTranslateY(0);
+                totalDragX = 0;
+                totalDragY = 0;
+            });
         }
     }
 
@@ -165,21 +177,65 @@ public class GraphCanvas extends Canvas {
 
         if (!isMouseOnCanvas) return;
 
-        double worldX = coordSystem.screenToWorldX(currentMouseX);
-        double worldY = coordSystem.screenToWorldY(currentMouseY);
+        double mouseX = currentMouseX;
+        double mouseY = currentMouseY;
+        double worldX = coordSystem.screenToWorldX(mouseX);
+        double worldY = coordSystem.screenToWorldY(mouseY);
+
+        boolean snapped = false;
+        Color snapColor = isDarkMode ? Color.LIGHTGRAY : Color.DARKGRAY;
+
+        for (GraphRenderer.KeyPoint kp : graphRenderer.getAllKeyPoints()) {
+            double sx = coordSystem.worldToScreenX(kp.x);
+            double sy = coordSystem.worldToScreenY(kp.y);
+
+            if (Math.hypot(mouseX - sx, mouseY - sy) < 12) {
+                worldX = kp.x;
+                worldY = kp.y;
+                mouseX = sx; // Snap visual crosshair to the exact pixel
+                mouseY = sy;
+                snapped = true;
+                snapColor = kp.color;
+                break;
+            }
+        }
+
         String coords = String.format("(%.2f, %.2f)", worldX, worldY);
 
-        gc.setFont(Font.font("Arial", 14));
-        gc.setFill(isDarkMode ? Color.rgb(40, 40, 40, 0.9) : Color.rgb(255, 255, 255, 0.8));
-        gc.fillRoundRect(currentMouseX + 10, currentMouseY + 10, 85, 20, 5, 5);
+        if (snapped) {
+            gc.setFont(Font.font("Arial", javafx.scene.text.FontWeight.BOLD, 14));
+            gc.setFill(isDarkMode ? Color.rgb(40, 40, 40, 0.95) : Color.rgb(255, 255, 255, 0.95));
+            gc.fillRoundRect(mouseX + 12, mouseY - 25, 95, 25, 5, 5);
+            gc.setStroke(snapColor);
+            gc.setLineWidth(1);
+            gc.strokeRoundRect(mouseX + 12, mouseY - 25, 95, 25, 5, 5);
 
-        gc.setFill(isDarkMode ? Color.WHITE : Color.BLACK);
-        gc.fillText(coords, currentMouseX + 15, currentMouseY + 25);
+            gc.setFill(snapColor);
+            gc.fillText(coords, mouseX + 17, mouseY - 7);
+
+            gc.setFill(isDarkMode ? Color.web("#1e1e1e") : Color.WHITE);
+            gc.fillOval(mouseX - 6, mouseY - 6, 12, 12);
+            gc.setStroke(snapColor);
+            gc.setLineWidth(3);
+            gc.strokeOval(mouseX - 6, mouseY - 6, 12, 12);
+        } else {
+            gc.setFont(Font.font("Arial", 14));
+            gc.setFill(isDarkMode ? Color.rgb(40, 40, 40, 0.8) : Color.rgb(255, 255, 255, 0.8));
+            gc.fillRoundRect(mouseX + 10, mouseY + 10, 85, 20, 5, 5);
+
+            gc.setFill(isDarkMode ? Color.WHITE : Color.BLACK);
+            gc.fillText(coords, mouseX + 15, mouseY + 25);
+
+            gc.setStroke(snapColor);
+            gc.setLineWidth(1);
+            gc.strokeLine(mouseX - 5, mouseY, mouseX + 5, mouseY);
+            gc.strokeLine(mouseX, mouseY - 5, mouseX, mouseY + 5);
+        }
     }
 
     public void setFunction(int index, GraphFunction function) {
         graphRenderer.updateFunction(index, function);
-        redrawMath(); // Only redraw math!
+        redrawMath();
     }
 
     public void removeFunction(GraphFunction function) {

@@ -6,8 +6,10 @@ import java.util.function.BiConsumer;
 
 import javafx.geometry.Pos;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
@@ -16,7 +18,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.control.Button;
 import math.GraphFunction;
 import javafx.scene.shape.Rectangle;
-import org.w3c.dom.Text;
 
 public class Menu extends VBox {
     private VBox functionBox = new VBox(10);
@@ -47,19 +48,44 @@ public class Menu extends VBox {
 
         HBox buttonLayout = createActionButtons();
 
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setContent(functionBox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
+        VBox.setVgrow(scrollPane,Priority.ALWAYS);
 
-        this.getChildren().addAll(label, functionBox, error, buttonLayout);
+        this.getChildren().addAll(label, scrollPane, error, buttonLayout);
+    }
+
+    private Color getThemeColor(Color originalColor) {
+        if (!isDarkMode) return originalColor;
+        if (originalColor.equals(Color.BLACK)) return Color.WHITE;
+
+        return originalColor.deriveColor(0, 0.8, 0.8, 1.0);
     }
 
     public void setDarkMode(boolean dark) {
         this.isDarkMode = dark;
 
+        if (dark) {
+            this.setStyle("-fx-background-color: #404040;"); // A lighter, softer dark grey
+            label.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #e0e0e0;");
+        } else {
+            this.setStyle("-fx-background-color: transparent;");
+            label.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #000000;");
+        }
+
+        String fieldBg = dark ? "black" : "white";
+        String textFill = dark ? "white" : "black";
+        String border = dark ? "-fx-border-color: #555; -fx-border-radius: 3;" : "-fx-border-color: #ccc; -fx-border-radius: 3;";
+        String baseStyle = "-fx-font-size: 18px; -fx-background-color: " + fieldBg + "; -fx-text-fill: " + textFill + "; " + border;
         for (TextField tf : textFields) {
+            tf.setStyle(baseStyle);
             Color originalColor = (Color) tf.getProperties().get("originalColor");
             Rectangle colorBox = (Rectangle) tf.getProperties().get("colorBox");
 
-            if (originalColor != null && originalColor.equals(Color.BLACK)) {
-                Color newColor = dark ? Color.WHITE : Color.BLACK;
+            if (originalColor != null) {
+                Color newColor =getThemeColor(originalColor);
 
                 Object data = tf.getUserData();
                 if (data instanceof GraphFunction) {
@@ -73,7 +99,34 @@ public class Menu extends VBox {
                 }
             }
         }
+        updateSliderStyles();
         canvas.setDarkMode(dark);
+    }
+
+    private void updateSliderStyles() {
+        String textFill = isDarkMode ? "white" : "black";
+        String fieldBg = isDarkMode ? "black" : "white";
+        String borderColor = isDarkMode ? "#555" : "#777";
+
+        for (Node cellNode : functionBox.getChildren()) {
+            if (cellNode instanceof VBox) {
+                VBox cellBox = (VBox) cellNode;
+                if (cellBox.getChildren().size() > 1 && cellBox.getChildren().get(1) instanceof VBox) {
+                    VBox sliderBox = (VBox) cellBox.getChildren().get(1);
+                    for (Node rowNode : sliderBox.getChildren()) {
+                        if (rowNode instanceof HBox) {
+                            HBox sRow = (HBox) rowNode;
+                            for (Node node : sRow.getChildren()) {
+                                if (node instanceof Label) {
+                                    node.setStyle("-fx-text-fill: " + textFill + ";");
+                                } else if (node instanceof TextField) {
+                                    node.setStyle("-fx-text-fill: " + textFill + "; -fx-background-color: " + fieldBg + "; -fx-border-color: " + borderColor + "; -fx-border-radius: 3;");                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public Color nextColor() {
@@ -85,7 +138,7 @@ public class Menu extends VBox {
     public void setLabel() {
         label = new Label();
         label.setText("Enter function: ");
-        label.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        label.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: black;");
         label.setMaxWidth(Double.MAX_VALUE);
         label.setAlignment(Pos.CENTER);
 
@@ -115,9 +168,7 @@ public class Menu extends VBox {
 
     public TextField setTextFieldAvoiding(Color avoidColor) {
         Color upcomingColor = colorPalette.get(nextColor);
-        // Take dark mode into account so Black/White aren't confused
-        Color upcomingDisplayColor = (upcomingColor.equals(Color.BLACK) && isDarkMode) ? Color.WHITE : upcomingColor;
-
+        Color upcomingDisplayColor = getThemeColor(upcomingColor);
         if (upcomingDisplayColor.equals(avoidColor)) {
             nextColor = (nextColor + 1) % colorPalette.size(); // Skip this color
         }
@@ -126,11 +177,14 @@ public class Menu extends VBox {
 
     public TextField setTextField() {
         Color color = nextColor();
-        Color displayColor = (color.equals(Color.BLACK) && isDarkMode) ? Color.WHITE : color;
-
+        Color displayColor = getThemeColor(color);
+        String fieldBg = isDarkMode ? "black" : "white";
+        String textFill = isDarkMode ? "white" : "black";
+        String border = isDarkMode ? "-fx-border-color: #555; -fx-border-radius: 3;" : "-fx-border-color: #ccc; -fx-border-radius: 3;";
         TextField input = new TextField();
         input.setPrefWidth(200);
-        input.setStyle("-fx-font-size: 18px;");
+        input.setStyle("-fx-font-size: 18px; -fx-background-color: " + fieldBg + "; -fx-text-fill: " + textFill + "; " + border);
+
 
         Rectangle colorBox = new Rectangle(30, 30, displayColor);
         colorBox.setStroke(Color.BLACK);
@@ -163,7 +217,7 @@ public class Menu extends VBox {
 
         colorButton.setOnAction(e -> {
             isVisible[0] = !isVisible[0];
-            Color activeColor = (color.equals(Color.BLACK) && isDarkMode) ? Color.WHITE : color;
+            Color activeColor = getThemeColor(color);
             colorBox.setFill(isVisible[0] ? activeColor : Color.WHITE);
 
             Object data = input.getUserData();
@@ -187,11 +241,11 @@ public class Menu extends VBox {
                 seterrLabel("");
         });
 
-        final GraphFunction[] functionHolder = new GraphFunction[1];
+        //final GraphFunction[] functionHolder = new GraphFunction[1];
 
         input.setOnAction(e -> {
             if (onSubmit != null) {
-                Color activeColor = (color.equals(Color.BLACK) && isDarkMode) ? Color.WHITE : color;
+                Color activeColor = getThemeColor(color);
                 onSubmit.accept(input, activeColor);
             }
             if (textFields.indexOf(input) == textFields.size() - 1 && !input.getText().trim().isEmpty()) {
@@ -215,6 +269,12 @@ public class Menu extends VBox {
                     Label sLabel = new Label(arg.getArgumentName() + " = ");
                     TextField valueField = new TextField("1.00");
                     valueField.setPrefWidth(50);
+                    String sTextFill = isDarkMode ? "white" : "black";
+                    String sFieldBg = isDarkMode ? "black" : "white";
+                    String sBorderColor = isDarkMode ? "#555" : "#777";
+
+                    sLabel.setStyle("-fx-text-fill: " + sTextFill + ";");
+                    valueField.setStyle("-fx-text-fill: " + sTextFill + "; -fx-background-color: " + sFieldBg + "; -fx-border-color: " + sBorderColor + "; -fx-border-radius: 3;");
 
                     slider.valueProperty().addListener((o, oldNum, newNum) -> {
                         arg.setArgumentValue(newNum.doubleValue());

@@ -21,6 +21,11 @@ import ui.Menu;
 import ui.SlopeCalculator;
 import ui.BestFitDialog;
 import javafx.event.ActionEvent;
+import javafx.animation.*;
+import javafx.scene.shape.*;
+import javafx.scene.text.*;
+import javafx.scene.effect.DropShadow;
+import javafx.util.Duration;
 
 public class Main extends Application {
     private Menu menu;
@@ -32,22 +37,18 @@ public class Main extends Application {
         Viewport viewport = new Viewport(-10, 10, -10, 10);
         Coordinate_System coordSystem = new Coordinate_System(viewport);
 
-
         GridRenderer gridRenderer = new GridRenderer(coordSystem);
         GraphCanvas canvas = new GraphCanvas(coordSystem, gridRenderer);
 
-
         Canvas overlayCanvas = new Canvas();
-        overlayCanvas.setMouseTransparent(true); // Let clicks pass through to the GraphCanvas for panning!
+        overlayCanvas.setMouseTransparent(true);
 
         Canvas mathCanvas = new Canvas();
         mathCanvas.setMouseTransparent(true);
-        canvas.setCanvases(mathCanvas, overlayCanvas); // Hand it to the controller
+        canvas.setCanvases(mathCanvas, overlayCanvas);
 
-        // Stack them: Graph on bottom, Overlay on top
         StackPane canvasLayers = new StackPane(canvas, mathCanvas, overlayCanvas);
 
-        // Bind both canvases to the StackPane
         canvas.widthProperty().bind(canvasLayers.widthProperty());
         canvas.heightProperty().bind(canvasLayers.heightProperty());
         mathCanvas.widthProperty().bind(canvasLayers.widthProperty());
@@ -63,39 +64,17 @@ public class Main extends Application {
 
         BorderPane root = new BorderPane();
 
-        canvas.setOnMouseMoved(e -> {
-            GraphicsContext gc = overlayCanvas.getGraphicsContext2D();
-            gc.clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
-
-            double worldX = coordSystem.screenToWorldX(e.getX());
-            double worldY = coordSystem.screenToWorldY(e.getY());
-
-            gc.setFill(isDarkMode ? Color.WHITE : Color.BLACK);
-            // Format to 2 decimal places for a cleaner look
-            String coords = String.format("(%.2f, %.2f)", worldX, worldY);
-            gc.fillText(coords, e.getX() + 15, e.getY() - 10);
-
-            // Draw a tiny crosshair
-            gc.setStroke(isDarkMode ? Color.LIGHTGRAY : Color.DARKGRAY);
-            gc.setLineWidth(1);
-            gc.strokeLine(e.getX() - 5, e.getY(), e.getX() + 5, e.getY());
-            gc.strokeLine(e.getX(), e.getY() - 5, e.getX(), e.getY() + 5);
-        });
-
-        // Clear the hover text when the mouse leaves the canvas
-        canvas.setOnMouseExited(e -> {
-            overlayCanvas.getGraphicsContext2D().clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
-        });
-
-
         Button homeButton = new Button("🏡");
         homeButton.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 30px; -fx-padding: 5 10 5 10;");
         AnchorPane.setTopAnchor(homeButton, 15.0);
         AnchorPane.setRightAnchor(homeButton, 15.0);
+
         homeButton.setOnAction(e -> {
-            viewport.reset(); // Assuming you have a reset method in Viewport
+            viewport.reset();
+            coordSystem.enforceAspectRatio(canvas.getWidth(), canvas.getHeight());
             canvas.redraw();
         });
+
         canvasContainer.getChildren().add(homeButton);
 
         menu = new Menu((inputField, color) -> {
@@ -112,7 +91,6 @@ public class Main extends Application {
             }
         }, canvas);
 
-        // --- POPUP WINDOWS ---
         IntegralCalculator integralCalculator = new IntegralCalculator(menu, canvas);
         Stage integralStage = new Stage();
         integralStage.setTitle("Area Calculator");
@@ -121,7 +99,7 @@ public class Main extends Application {
         integralStage.setScene(new Scene(integralCalculator));
         integralStage.setResizable(false);
 
-        SlopeCalculator slopeCalculator = new SlopeCalculator(menu);
+        SlopeCalculator slopeCalculator = new SlopeCalculator(menu, canvas);
         Stage slopeStage = new Stage();
         slopeStage.setTitle("Tangent Calculator");
         slopeStage.initStyle(StageStyle.UTILITY);
@@ -129,14 +107,11 @@ public class Main extends Application {
         slopeStage.setScene(new Scene(slopeCalculator));
         slopeStage.setResizable(false);
 
-        // --- GLOBAL TOOLBAR ---
         HBox toolBar = new HBox(15);
         toolBar.setAlignment(Pos.CENTER_LEFT);
         toolBar.setStyle("-fx-background-color: #2b2b2b; -fx-padding: 10 20 10 20; -fx-border-color: #444; -fx-border-width: 0 0 1 0;");
 
-        // 1. Menu Toggle Button
         Button toggleMenuButton = new Button("☰ Menu");
-        // 2. THEME TOGGLE BUTTON
         Button themeBtn = new Button("🌙 Dark Mode");
 
         String topBtnIdle = "-fx-background-color: #333; -fx-text-fill: #e0e0e0; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: bold;";
@@ -159,9 +134,6 @@ public class Main extends Application {
             menuVisible = !menuVisible;
         });
 
-        // --- THEME LOGIC ---
-        Scene scene = new Scene(root, 800, 600);
-
         themeBtn.setOnAction(e -> {
             isDarkMode = !isDarkMode;
 
@@ -169,12 +141,12 @@ public class Main extends Application {
                 String css = getClass().getResource("/dark-theme.css").toExternalForm();
 
                 if (isDarkMode) {
-                    scene.getStylesheets().add(css);
+                    root.getScene().getStylesheets().add(css);
                     integralStage.getScene().getStylesheets().add(css);
                     slopeStage.getScene().getStylesheets().add(css);
                     themeBtn.setText("☀️ Light Mode");
                 } else {
-                    scene.getStylesheets().clear();
+                    root.getScene().getStylesheets().clear();
                     integralStage.getScene().getStylesheets().clear();
                     slopeStage.getScene().getStylesheets().clear();
                     themeBtn.setText("🌙 Dark Mode");
@@ -183,15 +155,15 @@ public class Main extends Application {
                 System.out.println("Could not find dark-theme.css in the resources folder!");
             }
 
-            // Optional: If you created a setDarkMode in GraphCanvas
-             canvas.setDarkMode(isDarkMode);
-             menu.setDarkMode(isDarkMode);
+            canvas.setDarkMode(isDarkMode);
+            menu.setDarkMode(isDarkMode);
+            slopeCalculator.setDarkMode(isDarkMode);
+            integralCalculator.setDarkMode(isDarkMode);
         });
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // 3. Math Tool Buttons
         Button bestFitBtn = new Button("📈 Best Fit");
         Button slopeBtn = new Button("📐 Tangent");
         Button integralBtn = new Button("∫ Area");
@@ -209,7 +181,7 @@ public class Main extends Application {
         }
 
         bestFitBtn.setOnAction(e -> {
-            BestFitDialog dialog = new BestFitDialog();
+            BestFitDialog dialog = new BestFitDialog(isDarkMode);
             if (isDarkMode) {
                 try {
                     dialog.getDialogPane().getStylesheets().add(getClass().getResource("/dark-theme.css").toExternalForm());
@@ -237,13 +209,94 @@ public class Main extends Application {
 
         toolBar.getChildren().addAll(toggleMenuButton, themeBtn, spacer, mathTools);
         root.setTop(toolBar);
-
         root.setCenter(canvasContainer);
         root.setLeft(menu);
 
+        StackPane superRoot = new StackPane(root);
+
+        StackPane splashScreen = buildSplashScreen(superRoot);
+        superRoot.getChildren().add(splashScreen);
+
+        Scene scene = new Scene(superRoot, 800, 600);
         primaryStage.setTitle("Graphing App Test");
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    private StackPane buildSplashScreen(StackPane superRoot) {
+        StackPane splash = new StackPane();
+        splash.setStyle("-fx-background-color: #121212;");
+
+        Path mathPath = new Path();
+        mathPath.setStroke(Color.web("#00d2ff"));
+        mathPath.setStrokeWidth(4);
+        mathPath.setStrokeLineCap(StrokeLineCap.ROUND);
+        mathPath.setStrokeLineJoin(StrokeLineJoin.ROUND);
+
+        DropShadow glow = new DropShadow();
+        glow.setColor(Color.web("#00d2ff"));
+        glow.setRadius(15);
+        glow.setSpread(0.2);
+        mathPath.setEffect(glow);
+
+        mathPath.getElements().add(new MoveTo(0, 300));
+        for (int i = 1; i <= 800; i++) {
+            double amplitude = 150 * Math.exp(-i * 0.003);
+            double y = 300 + Math.sin(i * 0.05) * amplitude;
+            mathPath.getElements().add(new LineTo(i, y));
+        }
+
+        double pathLength = 2000;
+        mathPath.getStrokeDashArray().setAll(pathLength);
+        mathPath.setStrokeDashOffset(pathLength);
+
+        Text title = new Text("DESMOS ++");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 50));
+        title.setFill(Color.WHITE);
+
+        Text subtitle = new Text("Interactive Math Engine");
+        subtitle.setFont(Font.font("Segoe UI", FontWeight.LIGHT, 20));
+        subtitle.setFill(Color.web("#aaaaaa"));
+
+        VBox titleBox = new VBox(5, title, subtitle);
+        titleBox.setAlignment(Pos.CENTER);
+        titleBox.setOpacity(0);
+
+        Pane pathContainer = new Pane(mathPath);
+        splash.getChildren().addAll(pathContainer, titleBox);
+
+        Timeline drawCurve = new Timeline(
+                new KeyFrame(Duration.ZERO, new KeyValue(mathPath.strokeDashOffsetProperty(), pathLength)),
+                new KeyFrame(Duration.seconds(2.5), new KeyValue(mathPath.strokeDashOffsetProperty(), 0, Interpolator.EASE_OUT))
+        );
+
+        FadeTransition textFade = new FadeTransition(Duration.seconds(1.5), titleBox);
+        textFade.setFromValue(0);
+        textFade.setToValue(1);
+
+        ScaleTransition textScale = new ScaleTransition(Duration.seconds(1.5), titleBox);
+        textScale.setFromX(0.9);
+        textScale.setFromY(0.9);
+        textScale.setToX(1);
+        textScale.setToY(1);
+
+        ParallelTransition textAnim = new ParallelTransition(textFade, textScale);
+
+        FadeTransition splashFadeOut = new FadeTransition(Duration.seconds(1), splash);
+        splashFadeOut.setFromValue(1);
+        splashFadeOut.setToValue(0);
+
+        SequentialTransition sequence = new SequentialTransition(
+                drawCurve,
+                textAnim,
+                new PauseTransition(Duration.seconds(0.8)),
+                splashFadeOut
+        );
+
+        sequence.setOnFinished(e -> superRoot.getChildren().remove(splash));
+        sequence.play();
+
+        return splash;
     }
 
     public static void main(String[] args) {
