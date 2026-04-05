@@ -1,9 +1,14 @@
 package ui;
 
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import math.calculateLeastSquares;
 
@@ -12,102 +17,175 @@ import java.util.List;
 
 public class BestFitDialog extends Dialog<String> {
 
-    private final VBox pointsContainer = new VBox(5);
-    private final List<TextField> xInputs = new ArrayList<>();
-    private final List<TextField> yInputs = new ArrayList<>();
     private final boolean isDarkMode;
+    private TableView<DataPoint> table;
+    private ObservableList<DataPoint> dataPoints;
+    private Label errorLabel; // NEW: Inline error label
+
+    public static class DataPoint {
+        private final SimpleStringProperty x;
+        private final SimpleStringProperty y;
+
+        public DataPoint(String x, String y) {
+            this.x = new SimpleStringProperty(x);
+            this.y = new SimpleStringProperty(y);
+        }
+
+        public String getX() { return x.get(); }
+        public void setX(String val) { x.set(val); }
+        public SimpleStringProperty xProperty() { return x; }
+
+        public String getY() { return y.get(); }
+        public void setY(String val) { y.set(val); }
+        public SimpleStringProperty yProperty() { return y; }
+    }
 
     public BestFitDialog(boolean isDarkMode) {
         this.isDarkMode = isDarkMode;
         setTitle("Calculate Best Fit Line");
-        setHeaderText("Enter up to 10 coordinate points.");
+        setHeaderText("Enter coordinate points. (Press Enter to save a cell)");
 
-        if (isDarkMode) {
-            getDialogPane().setStyle("-fx-background-color: #404040;");
+        String bgColor = isDarkMode ? "#1e293b" : "#f8fafc";
+        getDialogPane().setStyle("-fx-background-color: " + bgColor + "; -fx-font-family: 'Segoe UI', sans-serif;");
+
+        getDialogPane().getStyleClass().add("calc-dialog-bg");
+        if (isDarkMode) getDialogPane().getStyleClass().add("dark-theme");
+
+        try {
+            String css = getClass().getResource("/ui/theme.css").toExternalForm();
+            getDialogPane().getStylesheets().add(css);
+        } catch (Exception ex) {
+            System.err.println("Could not load theme.css for Dialog");
         }
 
-        ComboBox<Integer> pointCountBox = new ComboBox<>();
-        pointCountBox.getItems().addAll(2, 3, 4, 5, 6, 7, 8, 9, 10);
-        pointCountBox.setValue(3);
-        pointCountBox.setOnAction(e -> generateInputFields(pointCountBox.getValue()));
+        table = new TableView<>();
+        table.setEditable(true);
+        table.setPrefHeight(250);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-        Label numPointsLabel = new Label("Number of points:");
-        numPointsLabel.setStyle("-fx-text-fill: " + (isDarkMode ? "white" : "black") + "; -fx-font-weight: bold;");
-        HBox topControls = new HBox(10, numPointsLabel, pointCountBox);
+        TableColumn<DataPoint, String> xCol = new TableColumn<>("X");
+        xCol.setCellValueFactory(cellData -> cellData.getValue().xProperty());
+        xCol.setCellFactory(TextFieldTableCell.forTableColumn());
 
-        VBox mainLayout = new VBox(15, topControls, pointsContainer);
-        mainLayout.setPadding(new Insets(10));
+        xCol.setOnEditCommit(event -> {
+            event.getRowValue().setX(event.getNewValue());
+            ensureEmptyLastRow();
+        });
+
+        TableColumn<DataPoint, String> yCol = new TableColumn<>("Y");
+        yCol.setCellValueFactory(cellData -> cellData.getValue().yProperty());
+        yCol.setCellFactory(TextFieldTableCell.forTableColumn());
+
+        yCol.setOnEditCommit(event -> {
+            event.getRowValue().setY(event.getNewValue());
+            ensureEmptyLastRow();
+        });
+
+        table.getColumns().addAll(xCol, yCol);
+
+        table.getSelectionModel().setCellSelectionEnabled(true);
+        table.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 1 && !table.getSelectionModel().isEmpty()) {
+                TablePosition<DataPoint, ?> pos = table.getSelectionModel().getSelectedCells().get(0);
+                table.edit(pos.getRow(), pos.getTableColumn());
+            }
+        });
+
+        dataPoints = FXCollections.observableArrayList(new DataPoint("", ""));
+        table.setItems(dataPoints);
+
+        Button clearBtn = new Button("Clear All");
+        clearBtn.getStyleClass().add("secondary-btn");
+        clearBtn.setOnAction(e -> {
+            dataPoints.clear();
+            dataPoints.add(new DataPoint("", ""));
+            errorLabel.setText(""); // Clear errors on reset
+        });
+
+        HBox topControls = new HBox(10, clearBtn);
+        topControls.setAlignment(Pos.CENTER);
+
+        // NEW: Initialize the error label
+        errorLabel = new Label();
+        errorLabel.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold; -fx-font-size: 13px;");
+        errorLabel.setAlignment(Pos.CENTER);
+        errorLabel.setMaxWidth(Double.MAX_VALUE);
+
+        // Add errorLabel to the bottom of the main layout
+        VBox mainLayout = new VBox(15, topControls, table, errorLabel);
+        mainLayout.setPadding(new Insets(10, 0, 0, 0));
+        VBox.setVgrow(table, Priority.ALWAYS);
         getDialogPane().setContent(mainLayout);
 
         ButtonType calculateButtonType = new ButtonType("Calculate", ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(calculateButtonType, ButtonType.CANCEL);
 
-        generateInputFields(3);
+        Button calcNode = (Button) getDialogPane().lookupButton(calculateButtonType);
+        if (calcNode != null) {
+            calcNode.getStyleClass().add("primary-btn");
+
+            // NEW: Intercept the Calculate click!
+            calcNode.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                table.edit(-1, null); // Force commit any active typing
+                String result = processInputAndCalculate();
+
+                // If it's an error, show it and STOP the dialog from closing
+                if (result.startsWith("Error:")) {
+                    errorLabel.setText(result);
+                    event.consume();
+                } else {
+                    errorLabel.setText("");
+                }
+            });
+        }
+
+        Button cancelNode = (Button) getDialogPane().lookupButton(ButtonType.CANCEL);
+        if (cancelNode != null) cancelNode.getStyleClass().add("secondary-btn");
 
         setResultConverter(dialogButton -> {
             if (dialogButton == calculateButtonType) {
+                // We only reach this if the event filter above didn't consume the event!
                 return processInputAndCalculate();
             }
             return null;
         });
     }
 
-    private void generateInputFields(int count) {
-        pointsContainer.getChildren().clear();
-        xInputs.clear();
-        yInputs.clear();
-
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(5);
-
-        String textFill = isDarkMode ? "white" : "black";
-        String fieldBg = isDarkMode ? "black" : "white";
-        String border = isDarkMode ? "-fx-border-color: #555; -fx-border-radius: 3;" : "-fx-border-color: #ccc; -fx-border-radius: 3;";
-        String tfStyle = "-fx-background-color: " + fieldBg + "; -fx-text-fill: " + textFill + "; " + border;
-        String labelStyle = "-fx-text-fill: " + textFill + "; -fx-font-weight: bold;";
-
-        Label xLabel = new Label("X"); xLabel.setStyle(labelStyle);
-        Label yLabel = new Label("Y"); yLabel.setStyle(labelStyle);
-
-        grid.add(xLabel, 0, 0);
-        grid.add(yLabel, 1, 0);
-
-        for (int i = 0; i < count; i++) {
-            TextField xField = new TextField();
-            xField.setPromptText("x" + (i + 1));
-            xField.setPrefWidth(60);
-            xField.setStyle(tfStyle);
-
-            TextField yField = new TextField();
-            yField.setPromptText("y" + (i + 1));
-            yField.setPrefWidth(60);
-            yField.setStyle(tfStyle);
-
-            xInputs.add(xField);
-            yInputs.add(yField);
-
-            grid.add(xField, 0, i + 1);
-            grid.add(yField, 1, i + 1);
+    private void ensureEmptyLastRow() {
+        if (dataPoints.isEmpty()) {
+            dataPoints.add(new DataPoint("", ""));
+            return;
         }
-        pointsContainer.getChildren().add(grid);
-        getDialogPane().getScene().getWindow().sizeToScene();
+
+        DataPoint lastPoint = dataPoints.get(dataPoints.size() - 1);
+        boolean xHasData = lastPoint.getX() != null && !lastPoint.getX().trim().isEmpty();
+        boolean yHasData = lastPoint.getY() != null && !lastPoint.getY().trim().isEmpty();
+
+        if (xHasData || yHasData) {
+            dataPoints.add(new DataPoint("", ""));
+            table.scrollTo(dataPoints.size() - 1);
+        }
     }
 
     private String processInputAndCalculate() {
         List<Double> xVals = new ArrayList<>();
         List<Double> yVals = new ArrayList<>();
 
-        for (int i = 0; i < xInputs.size(); i++) {
+        for (DataPoint dp : dataPoints) {
             try {
-                double x = Double.parseDouble(xInputs.get(i).getText());
-                double y = Double.parseDouble(yInputs.get(i).getText());
-
-                xVals.add(x);
-                yVals.add(y);
-            } catch (NumberFormatException ignored) {
-            }
+                if (dp.getX() != null && dp.getY() != null && !dp.getX().trim().isEmpty() && !dp.getY().trim().isEmpty()) {
+                    double x = Double.parseDouble(dp.getX().trim());
+                    double y = Double.parseDouble(dp.getY().trim());
+                    xVals.add(x);
+                    yVals.add(y);
+                }
+            } catch (NumberFormatException ignored) {}
         }
+
+        if (xVals.size() < 2) {
+            return "Error: Best fit requires at least 2 valid points.";
+        }
+
         return calculateLeastSquares.calculateBestFitLine(xVals, yVals);
     }
 }

@@ -28,9 +28,13 @@ public class GraphCanvas extends Canvas {
     private boolean isDarkMode = false;
 
     private double totalDragX = 0, totalDragY = 0;
+    // --- NEW: INTERACTIVE INTEGRATION FIELDS ---
+    private ShadedRegion activeRegion = null;
+    private String draggingBound = null; // Stores "a" or "b"
+    private java.util.function.BiConsumer<Double, Double> onBoundsChanged = null;
 
     private javafx.animation.PauseTransition zoomTimer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(50));
-
+    private javafx.animation.PauseTransition dragTimer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(30)); // ~33 FPS limit
     public GraphCanvas(Coordinate_System coordSystem, GridRenderer gridRenderer) {
         this.coordSystem = coordSystem;
         this.gridRenderer = gridRenderer;
@@ -38,6 +42,7 @@ public class GraphCanvas extends Canvas {
         this.graphRenderer = new GraphRenderer(coordSystem);
 
         zoomTimer.setOnFinished(e -> redrawMath());
+        dragTimer.setOnFinished(e -> redrawMath());
 
         widthProperty().addListener(evt -> {
             coordSystem.enforceAspectRatio(getWidth(), getHeight());
@@ -51,6 +56,23 @@ public class GraphCanvas extends Canvas {
         setOnMousePressed(e -> {
             lastMouseX = e.getX();
             lastMouseY = e.getY();
+            draggingBound = null;
+
+            // NEW: Check if the mouse is "grabbing" a boundary line!
+            if (activeRegion != null) {
+                double tolerance = 15; // 15 pixel grab radius
+                if (!activeRegion.isRespectToY) {
+                    double sxA = coordSystem.worldToScreenX(activeRegion.a);
+                    double sxB = coordSystem.worldToScreenX(activeRegion.b);
+                    if (Math.abs(e.getX() - sxA) < tolerance) draggingBound = "a";
+                    else if (Math.abs(e.getX() - sxB) < tolerance) draggingBound = "b";
+                } else {
+                    double syA = coordSystem.worldToScreenY(activeRegion.a);
+                    double syB = coordSystem.worldToScreenY(activeRegion.b);
+                    if (Math.abs(e.getY() - syA) < tolerance) draggingBound = "a";
+                    else if (Math.abs(e.getY() - syB) < tolerance) draggingBound = "b";
+                }
+            }
         });
 
         setOnMouseMoved(e -> {
@@ -68,6 +90,21 @@ public class GraphCanvas extends Canvas {
         });
 
         setOnMouseDragged(e -> {
+            // NEW: If dragging a bound, update area dynamically and STOP the canvas from panning!
+            if (draggingBound != null && activeRegion != null && onBoundsChanged != null) {
+                if (!activeRegion.isRespectToY) {
+                    double newWorldX = coordSystem.screenToWorldX(e.getX());
+                    if (draggingBound.equals("a")) activeRegion.a = newWorldX;
+                    else activeRegion.b = newWorldX;
+                } else {
+                    double newWorldY = coordSystem.screenToWorldY(e.getY());
+                    if (draggingBound.equals("a")) activeRegion.a = newWorldY;
+                    else activeRegion.b = newWorldY;
+                }
+                onBoundsChanged.accept(activeRegion.a, activeRegion.b);
+                dragTimer.playFromStart(); // Debounced drawing!
+                return;
+            }
             double dx = e.getX() - lastMouseX;
             double dy = e.getY() - lastMouseY;
 
@@ -90,6 +127,7 @@ public class GraphCanvas extends Canvas {
             redrawGridOnly();
             drawMouseCoordinates();
         });
+
 
         setOnMouseReleased(e -> {
             redrawMath();
@@ -120,6 +158,21 @@ public class GraphCanvas extends Canvas {
     public void setCanvases(Canvas math, Canvas overlay) {
         this.mathCanvas = math;
         this.overlayCanvas = overlay;
+    }
+    // --- NEW: INTERACTIVE BRIDGE METHODS ---
+    public void setInteractiveIntegration(ShadedRegion region, java.util.function.BiConsumer<Double, Double> callback) {
+        this.activeRegion = region;
+        this.onBoundsChanged = callback;
+        graphRenderer.clearShadedRegions();
+        graphRenderer.addShadedRegion(region);
+        redrawMath();
+    }
+
+    public void clearInteractiveIntegration() {
+        this.activeRegion = null;
+        this.onBoundsChanged = null;
+        graphRenderer.clearShadedRegions();
+        redrawMath();
     }
 
     public void setDarkMode(boolean dark) {
@@ -245,6 +298,22 @@ public class GraphCanvas extends Canvas {
 
     public void addShadedRegion(ShadedRegion region) {
         graphRenderer.addShadedRegion(region);
+        redrawMath();
+    }
+    public void clearTangentPoints() {
+        graphRenderer.clearTangentPoints();
+        redrawMath();
+    }
+    // --- MISSING TANGENT LINE BRIDGE METHODS ---
+
+    public void addTangentLine(double x, double y, double m, Color color) {
+        // We pass the 'm' (slope) and add a little transparency to the line so it looks distinct
+        graphRenderer.addTangentLine(x, y, m, color.deriveColor(0, 1, 1, 0.7));
+        redrawMath();
+    }
+
+    public void clearTangentLines() {
+        graphRenderer.clearTangentLines();
         redrawMath();
     }
 }

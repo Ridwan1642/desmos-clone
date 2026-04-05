@@ -1,253 +1,274 @@
 package ui;
 
 import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import math.GraphFunction;
-import javafx.scene.layout.Region;
-import javafx.scene.control.CheckBox;
-import javafx.event.ActionEvent;
+import math.Slope;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class SlopeCalculator extends VBox {
-    private Menu menu;
-    private GraphCanvas canvas;
+    private final Menu menu;
+    private final GraphCanvas canvas;
     private Label error;
-    private boolean isDarkMode = false;
+    private CheckBox drawLineCheck;
+    private CheckBox addToMenuCheck; // --- NEW: The Menu Toggle! ---
 
     public SlopeCalculator(Menu menu, GraphCanvas canvas) {
         this.menu = menu;
         this.canvas = canvas;
-        this.error = new Label();
-        this.error.setMinHeight(30);
-        this.error.setPrefHeight(30);
-        this.error.setAlignment(Pos.BOTTOM_CENTER);
 
-        this.setSpacing(15);
-        this.setPrefWidth(350);
-        this.setPrefHeight(250);
+        this.getStyleClass().add("calc-dialog-bg");
+        this.setSpacing(20);
+        this.setPrefWidth(400);
 
-        setDarkMode(false);
-        setFunctionState();
+        showInputState();
     }
 
-    public void setDarkMode(boolean dark) {
-        this.isDarkMode = dark;
-        this.setStyle(dark ? "-fx-background-color: #404040; -fx-padding: 25;" : "-fx-background-color: white; -fx-padding: 25;");
-        applyTheme(this);
+    public void refresh() {
+        showInputState();
     }
 
-    private void applyTheme(javafx.scene.Parent parent) {
-        String textFill = isDarkMode ? "white" : "black";
-        String fieldBg = isDarkMode ? "black" : "white";
-        String border = isDarkMode ? "-fx-border-color: #555; -fx-border-radius: 3;" : "-fx-border-color: #ccc; -fx-border-radius: 3;";
+    private void showInputState() {
+        this.getChildren().clear();
 
-        for (javafx.scene.Node node : parent.getChildrenUnmodifiable()) {
-            if (node instanceof Label) {
-                Label l = (Label) node;
-                if (l == error) {
-                    if (l.getText().contains("Snapped") || l.getText().contains("Warning")) {
-                        l.setStyle("-fx-text-fill: " + (isDarkMode ? "#FFB300" : "#F57C00") + "; -fx-font-size: 14px;");
-                    } else {
-                        l.setStyle("-fx-text-fill: " + (isDarkMode ? "#ff6b6b" : "red") + "; -fx-font-size: 15px;");
-                    }
-                } else if (l.getText().startsWith("Slope:")) {
-                    l.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + (isDarkMode ? "#00d2ff" : "#2196F3") + ";");
-                } else {
-                    l.setStyle("-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: " + textFill + ";");
-                }
-            } else if (node instanceof TextField) {
-                ((TextField) node).setStyle("-fx-font-size: 18px; -fx-background-color: " + fieldBg + "; -fx-text-fill: " + textFill + "; " + border);
-            } else if (node instanceof CheckBox) {
-                ((CheckBox) node).setStyle("-fx-font-size: 15px; -fx-text-fill: " + textFill + ";");
-            } else if (node instanceof javafx.scene.Parent) {
-                applyTheme((javafx.scene.Parent) node);
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(10);
+
+        Label funcLabel = new Label("Select Function:");
+        funcLabel.getStyleClass().add("calc-label");
+        ComboBox<String> funcDropdown = new ComboBox<>();
+        funcDropdown.setPromptText("Choose a function...");
+        funcDropdown.setMaxWidth(Double.MAX_VALUE);
+        funcDropdown.getStyleClass().add("combo-box");
+
+        List<Integer> validIndices = new ArrayList<>();
+        for (int i = 0; i < menu.getTextFields().size(); i++) {
+            TextField tf = menu.getTextFields().get(i);
+            if (tf.getUserData() instanceof GraphFunction) {
+                String eq = tf.getText().isEmpty() ? "Empty" : tf.getText();
+                funcDropdown.getItems().add("Row " + (i + 1) + ": " + eq);
+                validIndices.add(i);
             }
         }
-    }
 
-    public void seterrLabel(String message) {
-        error.setText(message);
-        applyTheme(this);
-    }
+        Label inputLabel = new Label("Enter x coordinate:");
+        inputLabel.getStyleClass().add("calc-label");
+        TextField inputField = new TextField();
+        inputField.setPromptText("e.g., 2.5");
+        inputField.getStyleClass().add("input-field");
 
-    public void seterrLabel() {
-        seterrLabel(" ");
-    }
+        Label yInputLabel = new Label("Enter y coordinate:");
+        yInputLabel.getStyleClass().add("calc-label");
+        TextField yInputField = new TextField();
+        yInputField.setPromptText("e.g., 3.0");
+        yInputField.getStyleClass().add("input-field");
 
-    private void setFunctionState() {
-        this.getChildren().clear();
-        seterrLabel();
+        yInputLabel.setVisible(false);
+        yInputLabel.setManaged(false);
+        yInputField.setVisible(false);
+        yInputField.setManaged(false);
 
-        Label newLabel = new Label("Enter function number:");
-        HBox topRow = new HBox(newLabel);
-        topRow.setAlignment(Pos.CENTER_LEFT);
-        topRow.setPadding(new javafx.geometry.Insets(0, 0, 15, 0));
+        drawLineCheck = new CheckBox("Draw Tangent Line on Graph");
+        drawLineCheck.setSelected(true);
+        drawLineCheck.getStyleClass().add("calc-label");
 
-        TextField input = new TextField();
-        input.setPrefWidth(90);
+        // --- NEW: Add to Menu CheckBox ---
+        addToMenuCheck = new CheckBox("Add Tangent to Function List");
+        addToMenuCheck.setSelected(false); // Default to false to prevent accidental menu spam
+        addToMenuCheck.getStyleClass().add("calc-label");
 
-        Button nextBtn = new Button("Next");
-        nextBtn.setStyle("-fx-font-size: 16px; -fx-padding: 5 15 5 15;");
+        funcDropdown.setOnAction(e -> {
+            int selIdx = funcDropdown.getSelectionModel().getSelectedIndex();
+            if (selIdx >= 0) {
+                GraphFunction f = (GraphFunction) menu.getTextFields().get(validIndices.get(selIdx)).getUserData();
 
-        HBox inputRow = new HBox(15, input, nextBtn);
-        inputRow.setAlignment(Pos.CENTER_LEFT);
+                yInputLabel.setVisible(false);
+                yInputLabel.setManaged(false);
+                yInputField.setVisible(false);
+                yInputField.setManaged(false);
 
-        javafx.event.EventHandler<javafx.event.ActionEvent> processInput = e -> {
-            try {
-                int funcNo = Integer.parseInt(input.getText().trim()) - 1;
-
-                if (funcNo >= 0 && funcNo < menu.getTextFields().size()) {
-                    Object data = menu.getTextFields().get(funcNo).getUserData();
-                    if (data instanceof math.GraphFunction) {
-                        showCalculationState(funcNo);
-                    } else {
-                        seterrLabel("Function " + (funcNo + 1) + " is empty.");
-                    }
-                } else {
-                    seterrLabel("Function " + (funcNo + 1) + " doesn't exist.");
+                if (f.getType() == GraphFunction.Type.PARAMETRIC || f.getType() == GraphFunction.Type.POLAR) {
+                    inputLabel.setText("Enter parameter (t or θ):");
                 }
-            } catch (NumberFormatException ex) {
-                seterrLabel("Please enter a valid number.");
+                else if (f.isImplicit()) {
+                    inputLabel.setText("Enter x coordinate:");
+                    yInputLabel.setVisible(true);
+                    yInputLabel.setManaged(true);
+                    yInputField.setVisible(true);
+                    yInputField.setManaged(true);
+                }
+                else {
+                    inputLabel.setText("Enter x coordinate:");
+                }
             }
-        };
+        });
 
-        input.setOnAction(processInput);
-        nextBtn.setOnAction(processInput);
+        grid.add(funcLabel, 0, 0);
+        grid.add(funcDropdown, 0, 1);
+        grid.add(inputLabel, 0, 2);
+        grid.add(inputField, 0, 3);
+        grid.add(yInputLabel, 0, 4);
+        grid.add(yInputField, 0, 5);
+        grid.add(drawLineCheck, 0, 6);
+        grid.add(addToMenuCheck, 0, 7); // --- NEW: Added beneath the draw toggle ---
 
-        this.getChildren().addAll(topRow, inputRow, error);
-        applyTheme(this);
-    }
+        ColumnConstraints col1 = new ColumnConstraints();
+        col1.setPercentWidth(100);
+        grid.getColumnConstraints().add(col1);
 
-    private void showCalculationState(int idx) {
-        this.getChildren().clear();
-        seterrLabel();
+        Button calcBtn = new Button("Calculate Tangent");
+        calcBtn.getStyleClass().add("primary-btn");
+        calcBtn.setMaxWidth(Double.MAX_VALUE);
 
-        GraphFunction function = (GraphFunction) menu.getTextFields().get(idx).getUserData();
-        boolean isImplicit = function.isImplicit();
+        Button clearBtn = new Button("Clear Point");
+        clearBtn.getStyleClass().add("secondary-btn");
+        clearBtn.setMaxWidth(Double.MAX_VALUE);
 
-        Label instruction = new Label(isImplicit ? "Enter x and y guess:" : "Enter x value:");
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        GridPane btnGrid = new GridPane();
+        btnGrid.setHgap(15);
+        btnGrid.add(calcBtn, 0, 0);
+        btnGrid.add(clearBtn, 1, 0);
+        ColumnConstraints bc1 = new ColumnConstraints(); bc1.setPercentWidth(50);
+        ColumnConstraints bc2 = new ColumnConstraints(); bc2.setPercentWidth(50);
+        btnGrid.getColumnConstraints().addAll(bc1, bc2);
 
-        Button backBtn = new Button("Back");
-        backBtn.setStyle("-fx-cursor: hand; -fx-font-size: 14px;");
-        backBtn.setOnAction(e -> setFunctionState());
+        VBox resultCard = new VBox();
+        resultCard.getStyleClass().add("result-card");
 
-        HBox topRow = new HBox(instruction, spacer, backBtn);
-        topRow.setAlignment(Pos.CENTER_LEFT);
-        topRow.setPadding(new javafx.geometry.Insets(0, 0, 15, 0));
+        Label resHeaderLabel = new Label("Tangent Properties:");
+        resHeaderLabel.getStyleClass().add("result-header-text");
+        HBox resHeader = new HBox(resHeaderLabel);
+        resHeader.getStyleClass().add("result-header");
 
-        TextField xInput = new TextField();
-        xInput.setPromptText("x");
-        xInput.setPrefWidth(isImplicit ? 60 : 90);
+        Label resSlope = new Label("Waiting for input...");
+        resSlope.getStyleClass().add("result-value");
+        resSlope.setStyle("-fx-font-size: 20px;");
 
-        TextField yInput = new TextField();
-        yInput.setPromptText("y");
-        yInput.setPrefWidth(60);
+        Label resEquation = new Label("y - y₁ = m(x - x₁)");
+        resEquation.getStyleClass().add("result-formula");
 
-        Button calcBtn = new Button("Calculate");
-        calcBtn.setStyle("-fx-font-size: 16px; -fx-padding: 5 10 5 10;");
+        resultCard.getChildren().addAll(resHeader, resSlope, resEquation);
 
-        CheckBox drawTangentBox = new CheckBox("Tangent");
+        error = new Label("");
+        error.getStyleClass().add("error-label");
 
-        HBox inputRow = new HBox(10);
-        if (isImplicit) {
-            inputRow.getChildren().addAll(xInput, yInput, calcBtn, drawTangentBox);
-        } else {
-            inputRow.getChildren().addAll(xInput, calcBtn, drawTangentBox);
-        }
-        inputRow.setAlignment(Pos.CENTER_LEFT);
-
-        Label resultLabel = new Label("Slope: ");
-
-        javafx.event.EventHandler<javafx.event.ActionEvent> calculateLogic = e -> {
+        // --- MATH LOGIC ---
+        calcBtn.setOnAction(e -> {
             try {
-                double x = Double.parseDouble(xInput.getText().trim());
-                double y = 0;
-
-                if (isImplicit) {
-                    y = Double.parseDouble(yInput.getText().trim());
+                int selIdx = funcDropdown.getSelectionModel().getSelectedIndex();
+                if (selIdx < 0) {
+                    error.setText("Please select a function first.");
+                    return;
                 }
 
-                math.Slope slopeCalculator = new math.Slope();
-                slopeCalculator.setGraphFunction(function);
+                double inputVal = Double.parseDouble(inputField.getText().trim());
+                GraphFunction f = (GraphFunction) menu.getTextFields().get(validIndices.get(selIdx)).getUserData();
 
-                if (isImplicit) {
-                    double[] snappedCoords = slopeCalculator.snapToCurve(x, y);
+                Slope slopeMath = new Slope();
+                slopeMath.setGraphFunction(f);
 
-                    if (snappedCoords == null) {
-                        resultLabel.setText("Slope: Undefined");
-                        seterrLabel("Point too far from curve to snap.");
+                double m = Double.NaN;
+                double px = 0, py = 0;
+
+                if (f.getType() == GraphFunction.Type.PARAMETRIC) {
+                    m = slopeMath.findParametricSlope(inputVal);
+                    double[] coords = slopeMath.getCoordinatesAtT(inputVal);
+                    px = coords[0]; py = coords[1];
+                }
+                else if (f.getType() == GraphFunction.Type.POLAR) {
+                    m = slopeMath.findPolarSlope(inputVal);
+                    double[] coords = slopeMath.getCoordinatesAtT(inputVal);
+                    px = coords[0]; py = coords[1];
+                }
+                else if (f.getType() == GraphFunction.Type.CARTESIAN) {
+                    m = slopeMath.findSlope(inputVal);
+                    px = inputVal;
+                    py = f.evaluate(px);
+                }
+                else if (f.isImplicit()) {
+                    px = inputVal;
+                    try {
+                        py = Double.parseDouble(yInputField.getText().trim());
+                    } catch (NumberFormatException ex) {
+                        error.setText("Please enter a valid y coordinate.");
                         return;
                     }
-
-                    x = snappedCoords[0];
-                    y = snappedCoords[1];
-
-                    java.text.DecimalFormat dfCoord = new java.text.DecimalFormat("0.####");
-                    yInput.setText(dfCoord.format(y));
-
-                    seterrLabel("Snapped Y to nearest valid point.");
-                } else {
-                    if (!slopeCalculator.isValidPoint(x)) {
-                        resultLabel.setText("Slope: Undefined");
-                        seterrLabel("Point is outside the domain.");
-                        return;
+                    m = slopeMath.findSlope(px, py);
+                    if (Math.abs(f.evaluate(px, py)) > 0.5) {
+                        error.setText("Note: Point is not perfectly on the curve.");
                     } else {
-                        seterrLabel();
+                        error.setText("");
                     }
                 }
 
-                double calculatedSlope = isImplicit ? slopeCalculator.findSlope(x, y) : slopeCalculator.findSlope(x);
-
-                if (Double.isNaN(calculatedSlope)) {
-                    resultLabel.setText("Slope: Undefined (Vertical)");
-                } else if (Math.abs(calculatedSlope) >= 10000) {
-                    resultLabel.setText("Slope: Infinity (Vertical)");
+                if (Double.isNaN(m)) {
+                    if (error.getText().isEmpty()) error.setText("Vertical tangent or undefined point.");
+                    resSlope.setText("Slope (m) = Undefined");
+                    resEquation.setText("x = " + String.format("%.3f", px));
                 } else {
-                    java.text.DecimalFormat df = new java.text.DecimalFormat("0.####");
-                    resultLabel.setText("Slope: " + df.format(calculatedSlope));
+                    resSlope.setText(String.format("Slope (m) ≈ %.4f", m));
 
-                    if (drawTangentBox.isSelected()) {
-                        double y0 = isImplicit ? y : function.evaluate(x);
-                        double b = y0 - (calculatedSlope * x);
-                        String equation;
+                    String sign = (m * -px + py) >= 0 ? "+" : "-";
+                    double yInt = Math.abs(m * -px + py);
+                    resEquation.setText(String.format("y = %.3fx %s %.3f", m, sign, yInt));
+                }
 
-                        if (Math.abs(calculatedSlope) < 1e-7) {
-                            equation = String.format(java.util.Locale.US, "%.4f", y0);
-                        } else {
-                            String bStr = "";
-                            if (Math.abs(b) > 1e-7) {
-                                String sign = (b < 0) ? "-" : "+";
-                                bStr = String.format(java.util.Locale.US, " %s %.4f", sign, Math.abs(b));
-                            }
-                            equation = String.format(java.util.Locale.US, "%.4f*x%s", calculatedSlope, bStr);
+                canvas.clearTangentLines();
+                canvas.addTangentPoint(px, py, f.getColor());
+
+                if (drawLineCheck.isSelected() && !Double.isNaN(m)) {
+                    canvas.addTangentLine(px, py, m, f.getColor());
+                }
+
+                // --- NEW: ADD TO MENU LOGIC ---
+                if (addToMenuCheck.isSelected() && !Double.isNaN(m)) {
+                    // 1. Calculate the Y-Intercept algebraically
+                    double yInt = py - m * px;
+                    String signForMenu = yInt >= 0 ? "+" : "-";
+
+                    // 2. Format the string safely for mxparser (e.g. 2.500*x + 1.200)
+                    String eqStr = String.format("%.4f*x %s %.4f", m, signForMenu, Math.abs(yInt));
+
+                    // 3. Smart Row Finder: Look for an existing empty row first!
+                    TextField targetRow = null;
+                    for (TextField tf : menu.getTextFields()) {
+                        if (tf.getText().trim().isEmpty()) {
+                            targetRow = tf;
+                            break;
                         }
-
-                        // --- NEW: Inject the point of contact to the canvas ---
-                        canvas.addTangentPoint(x, y0, function.getColor());
-
-                        TextField newRow = menu.setTextFieldAvoiding(function.getColor());
-                        newRow.setText(equation);
-                        newRow.fireEvent(new ActionEvent(ActionEvent.ACTION, newRow));
-                        drawTangentBox.setSelected(false);
                     }
+
+                    // If absolutely no empty rows exist, create one
+                    if (targetRow == null) {
+                        targetRow = menu.setTextField();
+                    }
+
+                    // 4. Fill the text and fire the Enter event
+                    targetRow.setText(eqStr);
+                    targetRow.fireEvent(new javafx.event.ActionEvent(javafx.event.ActionEvent.ACTION, targetRow));
+
+                    // Auto-uncheck it so clicking "Calculate" repeatedly doesn't spam the sidebar
+                    addToMenuCheck.setSelected(false);
                 }
+
             } catch (NumberFormatException ex) {
-                seterrLabel("Please enter valid numbers.");
+                error.setText("Please enter a valid number.");
             }
-        };
+        });
 
-        xInput.setOnAction(calculateLogic);
-        if (isImplicit) yInput.setOnAction(calculateLogic);
-        calcBtn.setOnAction(calculateLogic);
+        clearBtn.setOnAction(e -> {
+            canvas.clearTangentLines();
+            resSlope.setText("Waiting for input...");
+            resEquation.setText("y - y₁ = m(x - x₁)");
+            error.setText("");
+            inputField.clear();
+            yInputField.clear();
+        });
 
-        VBox.setMargin(resultLabel, new javafx.geometry.Insets(10, 0, 0, 0));
-        this.getChildren().addAll(topRow, inputRow, resultLabel, error);
-        applyTheme(this);
+        this.getChildren().addAll(grid, btnGrid, resultCard, error);
     }
 }

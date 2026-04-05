@@ -1,169 +1,271 @@
 package ui;
 
+import javafx.application.Platform;
 import javafx.geometry.Pos;
-import javafx.scene.control.Button;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.control.Label;
-import javafx.scene.paint.Color;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import math.GraphFunction;
 import model.ShadedRegion;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class IntegralCalculator extends VBox {
-    private Menu menu;
-    private GraphCanvas canvas;
+    private final Menu menu;
+    private final GraphCanvas canvas;
     private Label error;
-    private boolean isDarkMode = false;
+
+    // --- NEW: A timer to prevent the math from freezing the UI ---
+    private final javafx.animation.PauseTransition mathDebouncer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(100));
 
     public IntegralCalculator(Menu menu, GraphCanvas canvas) {
         this.menu = menu;
         this.canvas = canvas;
-        this.error = new Label();
-        this.error.setMinHeight(25);
-        this.error.setPrefHeight(25);
-        this.error.setAlignment(Pos.BOTTOM_CENTER);
 
-        this.setSpacing(10);
-        setDarkMode(false);
+        this.getStyleClass().add("calc-dialog-bg");
+        this.setSpacing(20);
+        this.setPrefWidth(480);
+
         showInputState();
     }
 
-    public void setDarkMode(boolean dark) {
-        this.isDarkMode = dark;
-        this.setStyle(dark ? "-fx-background-color: #404040; -fx-padding: 15;" : "-fx-background-color: white; -fx-padding: 15;");
-        applyTheme(this);
-    }
-
-    private void applyTheme(javafx.scene.Parent parent) {
-        String textFill = isDarkMode ? "white" : "black";
-        String fieldBg = isDarkMode ? "black" : "white";
-        String border = isDarkMode ? "-fx-border-color: #555; -fx-border-radius: 3;" : "-fx-border-color: #ccc; -fx-border-radius: 3;";
-
-        for (javafx.scene.Node node : parent.getChildrenUnmodifiable()) {
-            if (node instanceof Label) {
-                Label l = (Label) node;
-                if (l == error) {
-                    l.setStyle("-fx-text-fill: #ff6b6b; -fx-font-size: 14px;");
-                } else if (l.getText().startsWith("Area")) {
-                    l.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: " + (isDarkMode ? "#E040FB" : "#9C27B0") + ";");
-                } else {
-                    l.setStyle("-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: " + textFill + ";");
-                }
-            } else if (node instanceof TextField) {
-                ((TextField) node).setStyle("-fx-background-color: " + fieldBg + "; -fx-text-fill: " + textFill + "; " + border);
-            } else if (node instanceof javafx.scene.Parent) {
-                applyTheme((javafx.scene.Parent) node);
-            }
-        }
-    }
-
-    private void setErrLabel(String message) {
-        error.setText(message);
-        error.setStyle("-fx-text-fill: " + (isDarkMode ? "#ff6b6b" : "red") + "; -fx-font-size: 14px;");
+    public void refresh() {
+        showInputState();
     }
 
     private void showInputState() {
         this.getChildren().clear();
-        setErrLabel("");
 
-        Label title = new Label("Area Between Curves");
-        HBox topRow = new HBox(title);
-        topRow.setAlignment(Pos.CENTER_LEFT);
-        topRow.setPadding(new javafx.geometry.Insets(0, 0, 10, 0));
+        ToggleGroup axisGroup = new ToggleGroup();
+        RadioButton xAxisBtn = new RadioButton("Integrate w.r.t X (dx)");
+        xAxisBtn.setToggleGroup(axisGroup);
+        xAxisBtn.setSelected(true);
+        xAxisBtn.getStyleClass().add("calc-label");
 
-        TextField f1Input = new TextField();
-        f1Input.setPromptText("Func 1 (e.g., 1)");
-        TextField f2Input = new TextField();
-        f2Input.setPromptText("Func 2 (Optional)");
+        RadioButton yAxisBtn = new RadioButton("Integrate w.r.t Y (dy)");
+        yAxisBtn.setToggleGroup(axisGroup);
+        yAxisBtn.getStyleClass().add("calc-label");
+
+        HBox axisSelection = new HBox(20, xAxisBtn, yAxisBtn);
+        axisSelection.setAlignment(Pos.CENTER);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(8);
+
+        Label f1Label = new Label("Primary Function f(x)");
+        f1Label.getStyleClass().add("calc-label");
+        ComboBox<String> f1Dropdown = new ComboBox<>();
+        f1Dropdown.setPromptText("Select f(x)");
+        f1Dropdown.setMaxWidth(Double.MAX_VALUE);
+        f1Dropdown.getStyleClass().add("combo-box");
+
+        Label f2Label = new Label("Secondary Function g(x)");
+        f2Label.getStyleClass().add("calc-label");
+        ComboBox<String> f2Dropdown = new ComboBox<>();
+        f2Dropdown.setPromptText("Select g(x) (Optional)");
+        f2Dropdown.setMaxWidth(Double.MAX_VALUE);
+        f2Dropdown.getStyleClass().add("combo-box");
+        f2Dropdown.getItems().add("None");
+
+        List<Integer> validIndices = new ArrayList<>();
+        for (int i = 0; i < menu.getTextFields().size(); i++) {
+            TextField tf = menu.getTextFields().get(i);
+            if (tf.getUserData() instanceof GraphFunction) {
+                String eq = tf.getText().isEmpty() ? "Empty" : tf.getText();
+                String display = "f" + (i + 1) + "(x) = " + eq;
+                f1Dropdown.getItems().add(display);
+                f2Dropdown.getItems().add(display);
+                validIndices.add(i);
+            }
+        }
+
+        Label aLabel = new Label("Lower Bound (a):");
+        aLabel.getStyleClass().add("calc-label");
         TextField aInput = new TextField();
-        aInput.setPromptText("Lower Bound (a)");
-        aInput.setPrefWidth(110);
+        aInput.setPromptText("Σ e.g., 0");
+        aInput.getStyleClass().add("input-field");
+
+        Label bLabel = new Label("Upper Bound (b):");
+        bLabel.getStyleClass().add("calc-label");
         TextField bInput = new TextField();
-        bInput.setPromptText("Upper Bound (b)");
-        bInput.setPrefWidth(110);
+        bInput.setPromptText("π e.g., 3.14");
+        bInput.getStyleClass().add("input-field");
 
-        HBox boundsRow = new HBox(10, aInput, bInput);
-        Button calcBtn = new Button("Calculate");
-        Button clearBtn = new Button("Clear");
-        HBox btnRow = new HBox(10, calcBtn, clearBtn);
-        btnRow.setAlignment(Pos.CENTER_LEFT);
+        axisGroup.selectedToggleProperty().addListener((obs, old, newVal) -> {
+            canvas.clearInteractiveIntegration();
+            if (newVal == yAxisBtn) {
+                f1Label.setText("Primary Function f(y)"); f2Label.setText("Secondary Function g(y)");
+                aLabel.setText("Lower Bound (c):"); bLabel.setText("Upper Bound (d):");
+            } else {
+                f1Label.setText("Primary Function f(x)"); f2Label.setText("Secondary Function g(x)");
+                aLabel.setText("Lower Bound (a):"); bLabel.setText("Upper Bound (b):");
+            }
+        });
+        f1Dropdown.setOnAction(e -> canvas.clearInteractiveIntegration());
+        f2Dropdown.setOnAction(e -> canvas.clearInteractiveIntegration());
 
-        Label resultLabel = new Label("Area: ");
+        grid.add(f1Label, 0, 0); grid.add(f2Label, 1, 0);
+        grid.add(f1Dropdown, 0, 1); grid.add(f2Dropdown, 1, 1);
+        grid.add(aLabel, 0, 2); grid.add(bLabel, 1, 2);
+        grid.add(aInput, 0, 3); grid.add(bInput, 1, 3);
 
+        ColumnConstraints col1 = new ColumnConstraints(); col1.setPercentWidth(50);
+        ColumnConstraints col2 = new ColumnConstraints(); col2.setPercentWidth(50);
+        grid.getColumnConstraints().addAll(col1, col2);
+
+        Button calcBtn = new Button("Calculate Area");
+        calcBtn.getStyleClass().add("primary-btn");
+        calcBtn.setMaxWidth(Double.MAX_VALUE);
+
+        Button clearBtn = new Button("Clear All");
+        clearBtn.getStyleClass().add("secondary-btn");
+        clearBtn.setMaxWidth(Double.MAX_VALUE);
+
+        GridPane btnGrid = new GridPane();
+        btnGrid.setHgap(15);
+        btnGrid.add(calcBtn, 0, 0); btnGrid.add(clearBtn, 1, 0);
+        btnGrid.getColumnConstraints().addAll(col1, col2);
+
+        VBox resultCard = new VBox();
+        resultCard.getStyleClass().add("result-card");
+        Label resHeaderLabel = new Label("Calculated Area (A):");
+        resHeaderLabel.getStyleClass().add("result-header-text");
+        HBox resHeader = new HBox(resHeaderLabel);
+        resHeader.getStyleClass().add("result-header");
+
+        Label resValue = new Label("Waiting for input...");
+        resValue.getStyleClass().add("result-value");
+
+        Label resFormula = new Label("A = ∫ | f(x) - g(x) | dx");
+        resFormula.getStyleClass().add("result-formula");
+        resultCard.getChildren().addAll(resHeader, resValue, resFormula);
+
+        error = new Label("");
+        error.getStyleClass().add("error-label");
+
+        // --- MATH LOGIC ---
         calcBtn.setOnAction(e -> {
             try {
-                int f1Idx = Integer.parseInt(f1Input.getText().trim()) - 1;
-                int f2Idx = f2Input.getText().trim().isEmpty() ? -1 : Integer.parseInt(f2Input.getText().trim()) - 1;
+                int f1SelIdx = f1Dropdown.getSelectionModel().getSelectedIndex();
+                int f2SelIdx = f2Dropdown.getSelectionModel().getSelectedIndex();
+
+                if (f1SelIdx < 0) {
+                    error.setText("Please select Primary Function.");
+                    return;
+                }
+
                 double a = Double.parseDouble(aInput.getText().trim());
                 double b = Double.parseDouble(bInput.getText().trim());
 
-                if (f1Idx < 0 || f1Idx >= menu.getTextFields().size()) {
-                    setErrLabel("Function 1 is invalid.");
+                GraphFunction f1 = (GraphFunction) menu.getTextFields().get(validIndices.get(f1SelIdx)).getUserData();
+                GraphFunction f2 = f2SelIdx > 0 ? (GraphFunction) menu.getTextFields().get(validIndices.get(f2SelIdx - 1)).getUserData() : null;
+
+                if (f1.isImplicit() || (f2 != null && f2.isImplicit())) {
+                    error.setText("Error: Implicit functions cannot be integrated.");
+                    resValue.setText("Error");
+                    canvas.clearInteractiveIntegration();
                     return;
                 }
 
-                GraphFunction f1 = (GraphFunction) menu.getTextFields().get(f1Idx).getUserData();
-                GraphFunction f2 = null;
+                boolean isRespectToY = yAxisBtn.isSelected();
+                double initialArea = 0.0;
 
-                if (f2Idx != -1) {
-                    if (f2Idx >= 0 && f2Idx < menu.getTextFields().size()) {
-                        f2 = (GraphFunction) menu.getTextFields().get(f2Idx).getUserData();
-                    } else {
-                        setErrLabel("Function 2 is invalid.");
-                        return;
-                    }
+                if (f1.getType() == GraphFunction.Type.PARAMETRIC) {
+                    initialArea = calculateParametricArea(f1, a, b);
+                    resFormula.setText("A = ∫ y(t)x'(t) dt");
+                } else if (f1.getType() == GraphFunction.Type.POLAR) {
+                    initialArea = calculatePolarArea(f1, a, b);
+                    resFormula.setText("A = ½ ∫ [r(θ)]² dθ");
+                } else {
+                    initialArea = calculateNumericalArea(f1, f2, a, b, isRespectToY);
+                    resFormula.setText(isRespectToY ? "A = ∫ | f(y) - g(y) | dy" : "A = ∫ | f(x) - g(x) | dx");
                 }
 
-                if (f1 == null || (f2Idx != -1 && f2 == null)) {
-                    setErrLabel("Target function is empty.");
-                    return;
-                }
+                resValue.setText(String.format("≈ %.4f units²", initialArea));
+                error.setText("");
 
-                double area = calculateNumericalArea(f1, f2, a, b);
-                resultLabel.setText(String.format(java.util.Locale.US, "Area: %.4f", area));
-                setErrLabel("");
+                // --- ADVANCED ASYNCHRONOUS DRAGGING ---
+                ShadedRegion region = new ShadedRegion(f1, f2, a, b, f1.getColor(), isRespectToY);
+                canvas.setInteractiveIntegration(region, (newA, newB) -> {
+                    // 1. Instantly update the input boxes so UI feels perfectly responsive
+                    aInput.setText(String.format("%.2f", newA));
+                    bInput.setText(String.format("%.2f", newB));
+                    resValue.setText("Calculating..."); // Visual feedback
 
-                Color shadeColor = f1.getColor();
-                ShadedRegion region = new ShadedRegion(f1, f2, a, b, shadeColor);
-                canvas.clearShadedRegions();
-                canvas.addShadedRegion(region);
-                canvas.redraw();
+                    // 2. Debounce and run heavy math on a background thread!
+                    mathDebouncer.setOnFinished(event -> {
+                        new Thread(() -> {
+                            double dynamicArea = 0.0;
+                            if (f1.getType() == GraphFunction.Type.PARAMETRIC) dynamicArea = calculateParametricArea(f1, newA, newB);
+                            else if (f1.getType() == GraphFunction.Type.POLAR) dynamicArea = calculatePolarArea(f1, newA, newB);
+                            else dynamicArea = calculateNumericalArea(f1, f2, newA, newB, isRespectToY);
+
+                            final double finalArea = dynamicArea;
+                            Platform.runLater(() -> resValue.setText(String.format("≈ %.4f units²", finalArea)));
+                        }).start();
+                    });
+                    mathDebouncer.playFromStart();
+                });
 
             } catch (NumberFormatException ex) {
-                setErrLabel("Please enter valid numbers.");
+                error.setText("Please enter valid numeric bounds.");
             }
         });
 
         clearBtn.setOnAction(e -> {
-            canvas.clearShadedRegions();
-            canvas.redraw();
-            resultLabel.setText("Area: ");
-            setErrLabel("");
+            canvas.clearInteractiveIntegration();
+            resValue.setText("Waiting for input...");
+            resFormula.setText("A = ∫ | f(x) - g(x) | dx");
+            error.setText("");
+            f1Dropdown.getSelectionModel().clearSelection();
+            f2Dropdown.getSelectionModel().clearSelection();
+            aInput.clear(); bInput.clear();
         });
 
-        this.getChildren().addAll(topRow, f1Input, f2Input, boundsRow, btnRow, resultLabel, error);
-        applyTheme(this);
+        this.getChildren().addAll(axisSelection, grid, btnGrid, resultCard, error);
     }
 
-    private double calculateNumericalArea(GraphFunction f1, GraphFunction f2, double a, double b) {
+    // --- MATH HELPERS ---
+
+    private double calculateNumericalArea(GraphFunction f1, GraphFunction f2, double a, double b, boolean isRespectToY) {
         int n = 10000;
-        double minA = Math.min(a, b);
-        double maxB = Math.max(a, b);
-        double h = (maxB - minA) / n;
-        double totalArea = 0.0;
+        double min = Math.min(a, b); double max = Math.max(a, b);
+        double h = (max - min) / n; double totalArea = 0.0;
 
         for (int i = 0; i < n; i++) {
-            double x1 = minA + (i * h);
-            double x2 = minA + ((i + 1) * h);
-
-            double y1 = Math.abs(f1.evaluate(x1) - ((f2 != null) ? f2.evaluate(x1) : 0));
-            double y2 = Math.abs(f1.evaluate(x2) - ((f2 != null) ? f2.evaluate(x2) : 0));
-
-            if (!Double.isNaN(y1) && !Double.isNaN(y2)) {
-                totalArea += (h / 2.0) * (y1 + y2);
-            }
+            double v1 = min + (i * h); double v2 = min + ((i + 1) * h);
+            double y1 = Math.abs(f1.evaluate(v1) - ((f2 != null) ? f2.evaluate(v1) : 0));
+            double y2 = Math.abs(f1.evaluate(v2) - ((f2 != null) ? f2.evaluate(v2) : 0));
+            if (!Double.isNaN(y1) && !Double.isNaN(y2)) totalArea += (h / 2.0) * (y1 + y2);
         }
         return totalArea;
+    }
+
+    private double calculateParametricArea(GraphFunction f, double tStart, double tEnd) {
+        int n = 10000;
+        double h = (tEnd - tStart) / n;
+        double area = 0.0; double diffH = 1e-7;
+
+        for (int i = 0; i < n; i++) {
+            double t1 = tStart + (i * h); double t2 = tStart + ((i + 1) * h);
+            double y1 = f.evaluateParametricY(t1); double y2 = f.evaluateParametricY(t2);
+            double dxdt1 = (f.evaluateT(t1 + diffH) - f.evaluateT(t1 - diffH)) / (2 * diffH);
+            double dxdt2 = (f.evaluateT(t2 + diffH) - f.evaluateT(t2 - diffH)) / (2 * diffH);
+            area += (h / 2.0) * (y1 * dxdt1 + y2 * dxdt2);
+        }
+        return Math.abs(area);
+    }
+
+    private double calculatePolarArea(GraphFunction f, double thetaStart, double thetaEnd) {
+        int n = 10000;
+        double h = (thetaEnd - thetaStart) / n;
+        double area = 0.0;
+        for (int i = 0; i < n; i++) {
+            double r1 = f.evaluateT(thetaStart + (i * h));
+            double r2 = f.evaluateT(thetaStart + ((i + 1) * h));
+            area += (h / 2.0) * (0.5 * r1 * r1 + 0.5 * r2 * r2);
+        }
+        return Math.abs(area);
     }
 }

@@ -8,113 +8,153 @@ import java.util.List;
 
 public class GraphFunction {
 
-    private final Expression expression;
-    private final Argument xArg;
-    private final Argument yArg;
+    // --- The new Enum to define equation types ---
+    public enum Type { CARTESIAN, IMPLICIT, PARAMETRIC, POLAR }
+
+    private static final String NORMAL_CHARS = "0123456789xyn+-().t";
+    private static final String SUPER_CHARS  = "⁰¹²³⁴⁵⁶⁷⁸⁹ˣʸⁿ⁺⁻⁽⁾·ᵗ";
+
+    private Expression expression;
+    private Expression exprY;
+
+    private final Argument xArg = new Argument("x", 0);
+    private final Argument yArg = new Argument("y", 0);
+    private final Argument tArg = new Argument("t", 0);
+    private final Argument thetaArg = new Argument("theta", 0);
+
     private Color color;
     private boolean isVisible = true;
     private boolean isImplicit = false;
+    private Type type = Type.CARTESIAN;
     private List<Argument> parameters = new ArrayList<>();
 
     public GraphFunction(String formula, Color color) {
-
-        // 1. Bulletproof Argument initialization
-        xArg = new Argument("x", 0);
-        yArg = new Argument("y", 0);
-
-        String cleanFormula = preprocessFormula(formula);
-
-        isImplicit = cleanFormula.contains("y") || cleanFormula.contains("=");
-
-        String evalFormula = cleanFormula;
-        if (cleanFormula.contains("=")) {
-            String[] parts = cleanFormula.split("=");
-            if (parts.length == 2) {
-                evalFormula = "(" + parts[0].trim() + ") - (" + parts[1].trim() + ")";
-            }
-        }
-
-        // Initialize expression
-        expression = new Expression(evalFormula, xArg, yArg);
         this.color = color;
+        String cleanFormula = preprocessFormula(formula.trim());
 
-        // 2. THE DIAGNOSTIC CHECK
-        if (!expression.checkSyntax()) {
-            System.err.println("Error for: '" + evalFormula + "': " + expression.getErrorMessage());
+        // 1. Strict Hierarchy for equation classification
+        if (cleanFormula.startsWith("r=")) {
+            type = Type.POLAR;
+            isImplicit = false;
+            expression = new Expression(cleanFormula.substring(2).trim(), tArg, thetaArg);
+        }
+        else if (cleanFormula.startsWith("(") && cleanFormula.endsWith(")") && cleanFormula.contains(",")) {
+            type = Type.PARAMETRIC;
+            isImplicit = false;
+            String inside = cleanFormula.substring(1, cleanFormula.length() - 1);
+            String[] parts = inside.split(",", 2);
+            expression = new Expression(parts[0].trim(), tArg, thetaArg);
+            exprY = new Expression(parts[1].trim(), tArg, thetaArg);
+        }
+        else if (cleanFormula.contains("y") || cleanFormula.contains("=")) {
+            type = Type.IMPLICIT;
+            isImplicit = true;
+            String evalFormula = cleanFormula;
+            if (cleanFormula.contains("=")) {
+                String[] parts = cleanFormula.split("=");
+                if (parts.length == 2) {
+                    evalFormula = "(" + parts[0].trim() + ") - (" + parts[1].trim() + ")";
+                }
+            }
+            expression = new Expression(evalFormula, xArg, yArg);
+        }
+        else {
+            type = Type.CARTESIAN;
+            isImplicit = false;
+            expression = new Expression(cleanFormula, xArg);
         }
 
-        // Handle missing custom parameters (like a, b, c)
-        String[] missingArgs = expression.getMissingUserDefinedArguments();
+        // 2. Syntax Check & Custom Parameters
+        if (type == Type.PARAMETRIC) {
+            extractParameters(expression);
+            extractParameters(exprY);
+        } else {
+            extractParameters(expression);
+        }
+    }
+
+    private void extractParameters(Expression expr) {
+        if (!expr.checkSyntax()) {
+            System.err.println("Syntax Error: " + expr.getErrorMessage());
+            return;
+        }
+        String[] missingArgs = expr.getMissingUserDefinedArguments();
         if (missingArgs != null) {
             for (String argName : missingArgs) {
-                if (!argName.equals("x") && !argName.equals("y")) {
-                    Argument newArg = new Argument(argName, 1);
-                    parameters.add(newArg);
-                    expression.addArguments(newArg);
+                if (!argName.matches("x|y|t|theta")) {
+                    boolean exists = parameters.stream().anyMatch(a -> a.getArgumentName().equals(argName));
+                    if (!exists) {
+                        Argument newArg = new Argument(argName, 1);
+                        parameters.add(newArg);
+                        expr.addArguments(newArg);
+                    }
                 }
             }
         }
     }
 
-
     private String preprocessFormula(String formula) {
-        if (formula == null || formula.isEmpty()) {
-            return "0";
+        if (formula == null || formula.isEmpty()) return "0";
+
+        String stripped = formula.replace("\u200B", "");
+        StringBuilder sb = new StringBuilder();
+        boolean inSuperBlock = false;
+
+        for (int i = 0; i < stripped.length(); i++) {
+            char c = stripped.charAt(i);
+            int superIdx = SUPER_CHARS.indexOf(c);
+
+            if (superIdx != -1) {
+                if (!inSuperBlock) { sb.append("^("); inSuperBlock = true; }
+                sb.append(NORMAL_CHARS.charAt(superIdx));
+            } else {
+                if (inSuperBlock) { sb.append(")"); inSuperBlock = false; }
+                sb.append(c);
+            }
+        }
+        if (inSuperBlock) sb.append(")");
+
+        String safeMath = sb.toString();
+        int openParen = 0, closeParen = 0;
+
+        for (char c : safeMath.toCharArray()) {
+            if (c == '(') openParen++; else if (c == ')') closeParen++;
         }
 
-
-        int openParen = 0;
-        int closeParen = 0;
-        for (char c : formula.toCharArray()) {
-            if (c == '(') openParen++;
-            else if (c == ')') closeParen++;
-        }
-
-        StringBuilder processed = new StringBuilder(formula);
-
-
-        while (openParen > closeParen) {
-            processed.append(")");
-            closeParen++;
-        }
-
+        StringBuilder processed = new StringBuilder(safeMath);
+        while (openParen > closeParen) { processed.append(")"); closeParen++; }
 
         return processed.toString();
     }
 
-    public List<Argument> getParameters() {
-        return parameters;
-    }
-
-    public Color getColor() {
-        return color;
-    }
-
-    public void setColor(Color color) {
-        this.color = color;
-    }
-
-    public boolean isVisible() {
-        return isVisible;
-    }
-
-    public boolean isImplicit(){
-        return isImplicit;
-    }
-
-    public void setVisible(boolean v) {
-        isVisible = v;
-    }
+    public Type getType() { return type; }
+    public boolean isImplicit() { return isImplicit; }
+    public Color getColor() { return color; }
+    public void setColor(Color color) { this.color = color; }
+    public boolean isVisible() { return isVisible; }
+    public void setVisible(boolean v) { isVisible = v; }
+    public List<Argument> getParameters() { return parameters; }
 
     public double evaluate(double x) {
         xArg.setArgumentValue(x);
-        double result = expression.calculate();
-        return result;
+        return expression.calculate();
     }
 
-    public double evaluate(double x,double y){
+    public double evaluate(double x, double y) {
         xArg.setArgumentValue(x);
         yArg.setArgumentValue(y);
         return expression.calculate();
+    }
+
+    public double evaluateT(double t) {
+        tArg.setArgumentValue(t);
+        thetaArg.setArgumentValue(t);
+        return expression.calculate();
+    }
+
+    public double evaluateParametricY(double t) {
+        tArg.setArgumentValue(t);
+        thetaArg.setArgumentValue(t);
+        return exprY.calculate();
     }
 }

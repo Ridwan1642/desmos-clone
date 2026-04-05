@@ -7,308 +7,272 @@ import java.util.function.BiConsumer;
 import javafx.geometry.Pos;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
-import javafx.scene.control.Slider;
 import javafx.scene.paint.Color;
-import javafx.scene.control.Button;
+import javafx.scene.input.KeyCode;
 import math.GraphFunction;
-import javafx.scene.shape.Rectangle;
 
 public class Menu extends VBox {
-    private VBox functionBox = new VBox(10);
-    private Label error;
-    private Label label;
-    private List<TextField> textFields = new ArrayList<>();
-    private Button addButton;
-    private List<Button> hideButtons = new ArrayList<>();
-    private ArrayList<Color> colorPalette = new ArrayList<>(List.of(Color.RED, Color.BLUE, Color.GREEN, Color.BLACK, Color.PURPLE));
+    // --- HARMONIZED DICTIONARY ---
+    private static final String NORMAL_CHARS = "0123456789xyn+-().t";
+    private static final String SUPER_CHARS  = "⁰¹²³⁴⁵⁶⁷⁸⁹ˣʸⁿ⁺⁻⁽⁾·ᵗ";
+
+    private final VBox functionBox = new VBox();
+    private final Label error;
+    private final List<TextField> textFields = new ArrayList<>();
+    private final ArrayList<Color> defaultPalette = new ArrayList<>(List.of(
+            Color.web("#c74440"), Color.web("#2d70b3"), Color.web("#388c46"),
+            Color.web("#6042a6"), Color.web("#000000")
+    ));
     private int nextColor = 0;
-    private BiConsumer<TextField, Color> onSubmit;
-    private GraphCanvas canvas;
+    private final BiConsumer<TextField, Color> onSubmit;
+    private final GraphCanvas canvas;
     private boolean isDarkMode = false;
 
-
     public Menu(BiConsumer<TextField, Color> onSubmit, GraphCanvas canvas) {
-        this.setSpacing(10);
-        this.setPadding(new Insets(5, 5, 5, 5));
-        this.setPrefWidth(300);
-        this.setMaxWidth(300);
+        this.getStyleClass().add("menu-sidebar");
+        this.setPrefWidth(350);
+        this.setMaxWidth(350);
 
-        setLabel();
-        error = new Label();
         this.onSubmit = onSubmit;
         this.canvas = canvas;
 
-        setTextField();
+        error = new Label();
+        error.setStyle("-fx-text-fill: #ef4444; -fx-padding: 10; -fx-font-weight: bold;");
 
-        HBox buttonLayout = createActionButtons();
+        setTextField();
 
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setContent(functionBox);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;");
-        VBox.setVgrow(scrollPane,Priority.ALWAYS);
+        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent; -fx-border-color: transparent;");
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
 
-        this.getChildren().addAll(label, scrollPane, error, buttonLayout);
-    }
+        Button addBtn = new Button("+ Add Expression");
+        addBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #888; -fx-font-size: 14px; -fx-cursor: hand; -fx-font-weight: bold;");
+        addBtn.setOnAction(e -> setTextField().requestFocus());
 
-    private Color getThemeColor(Color originalColor) {
-        if (!isDarkMode) return originalColor;
-        if (originalColor.equals(Color.BLACK)) return Color.WHITE;
-
-        return originalColor.deriveColor(0, 0.8, 0.8, 1.0);
+        this.getChildren().addAll(scrollPane, addBtn, error);
     }
 
     public void setDarkMode(boolean dark) {
         this.isDarkMode = dark;
-
-        if (dark) {
-            this.setStyle("-fx-background-color: #404040;"); // A lighter, softer dark grey
-            label.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #e0e0e0;");
-        } else {
-            this.setStyle("-fx-background-color: transparent;");
-            label.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #000000;");
-        }
-
-        String fieldBg = dark ? "black" : "white";
-        String textFill = dark ? "white" : "black";
-        String border = dark ? "-fx-border-color: #555; -fx-border-radius: 3;" : "-fx-border-color: #ccc; -fx-border-radius: 3;";
-        String baseStyle = "-fx-font-size: 18px; -fx-background-color: " + fieldBg + "; -fx-text-fill: " + textFill + "; " + border;
-        for (TextField tf : textFields) {
-            tf.setStyle(baseStyle);
-            Color originalColor = (Color) tf.getProperties().get("originalColor");
-            Rectangle colorBox = (Rectangle) tf.getProperties().get("colorBox");
-
-            if (originalColor != null) {
-                Color newColor =getThemeColor(originalColor);
-
-                Object data = tf.getUserData();
-                if (data instanceof GraphFunction) {
-                    GraphFunction func = (GraphFunction) data;
-                    func.setColor(newColor);
-                    if (func.isVisible()) {
-                        colorBox.setFill(newColor);
-                    }
-                } else {
-                    colorBox.setFill(newColor);
-                }
-            }
-        }
-        updateSliderStyles();
         canvas.setDarkMode(dark);
     }
 
-    private void updateSliderStyles() {
-        String textFill = isDarkMode ? "white" : "black";
-        String fieldBg = isDarkMode ? "black" : "white";
-        String borderColor = isDarkMode ? "#555" : "#777";
-
-        for (Node cellNode : functionBox.getChildren()) {
-            if (cellNode instanceof VBox) {
-                VBox cellBox = (VBox) cellNode;
-                if (cellBox.getChildren().size() > 1 && cellBox.getChildren().get(1) instanceof VBox) {
-                    VBox sliderBox = (VBox) cellBox.getChildren().get(1);
-                    for (Node rowNode : sliderBox.getChildren()) {
-                        if (rowNode instanceof HBox) {
-                            HBox sRow = (HBox) rowNode;
-                            for (Node node : sRow.getChildren()) {
-                                if (node instanceof Label) {
-                                    node.setStyle("-fx-text-fill: " + textFill + ";");
-                                } else if (node instanceof TextField) {
-                                    node.setStyle("-fx-text-fill: " + textFill + "; -fx-background-color: " + fieldBg + "; -fx-border-color: " + borderColor + "; -fx-border-radius: 3;");                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    public Color nextColor() {
-        Color color = colorPalette.get(nextColor);
-        nextColor = (nextColor + 1) % colorPalette.size();
+    public Color getNextPaletteColor() {
+        Color color = defaultPalette.get(nextColor);
+        nextColor = (nextColor + 1) % defaultPalette.size();
         return color;
     }
 
-    public void setLabel() {
-        label = new Label();
-        label.setText("Enter function: ");
-        label.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: black;");
-        label.setMaxWidth(Double.MAX_VALUE);
-        label.setAlignment(Pos.CENTER);
-
-    }
-
-    private HBox createActionButtons() {
-        addButton = new Button("Add Function");
-        addButton.setPrefWidth(200);
-        addButton.setStyle("-fx-font-size: 16px; -fx-cursor: hand; -fx-font-weight: bold;");
-
-        addButton.setOnAction(e -> {
-            TextField newField = setTextField();
-            newField.requestFocus(); // Auto-focus the new box when clicked
-        });
-
-        HBox buttonBox = new HBox(addButton);
-        buttonBox.setAlignment(Pos.CENTER);
-        return buttonBox;
-    }
-
-
-    public void seterrLabel(String message) {
-        error.setText(message);
-        error.setStyle("-fx-text-fill: red; -fx-font-size: 14px;");
-        error.setAlignment(Pos.BOTTOM_CENTER);
-    }
-
-    public TextField setTextFieldAvoiding(Color avoidColor) {
-        Color upcomingColor = colorPalette.get(nextColor);
-        Color upcomingDisplayColor = getThemeColor(upcomingColor);
-        if (upcomingDisplayColor.equals(avoidColor)) {
-            nextColor = (nextColor + 1) % colorPalette.size(); // Skip this color
-        }
-        return setTextField();
-    }
+    public TextField setTextFieldAvoiding(Color avoidColor) { return setTextField(); }
 
     public TextField setTextField() {
-        Color color = nextColor();
-        Color displayColor = getThemeColor(color);
-        String fieldBg = isDarkMode ? "black" : "white";
-        String textFill = isDarkMode ? "white" : "black";
-        String border = isDarkMode ? "-fx-border-color: #555; -fx-border-radius: 3;" : "-fx-border-color: #ccc; -fx-border-radius: 3;";
+        int rowIndex = textFields.size() + 1;
+        Color assignedColor = getNextPaletteColor();
+
+        VBox cellBox = new VBox();
+        cellBox.getStyleClass().add("function-row");
+
+        Label numberLabel = new Label(String.valueOf(rowIndex));
+        numberLabel.getStyleClass().add("row-number");
+        numberLabel.setMinWidth(20);
+
+        // 1. VISIBILITY ICON (Perfect Circle Graphic)
+        Button visibilityBtn = new Button();
+        javafx.scene.shape.Circle visibilityCircle = new javafx.scene.shape.Circle(7, assignedColor);
+        visibilityBtn.setGraphic(visibilityCircle);
+        visibilityBtn.setMinSize(26, 26);
+        visibilityBtn.setMaxSize(26, 26);
+        visibilityBtn.getStyleClass().add("icon-btn");
+
+        // 2. COLOR PICKER ICON
+        ColorPicker colorPicker = new ColorPicker(assignedColor);
+        colorPicker.setMinSize(28, 28);
+        colorPicker.setMaxSize(28, 28);
+        colorPicker.getStyleClass().add("icon-color-picker");
+
+        // 3. TEXT FIELD
         TextField input = new TextField();
-        input.setPrefWidth(200);
-        input.setStyle("-fx-font-size: 18px; -fx-background-color: " + fieldBg + "; -fx-text-fill: " + textFill + "; " + border);
+        input.getStyleClass().add("math-input");
+        HBox.setHgrow(input, Priority.ALWAYS);
+        input.setPromptText("y = ...");
 
+        // 4. DELETE ICON
+        Button removeBtn = new Button("X");
+        removeBtn.setMinSize(26, 26);
+        removeBtn.setMaxSize(26, 26);
+        removeBtn.getStyleClass().add("icon-btn");
+        removeBtn.setStyle("-fx-text-fill: #ef4444;");
 
-        Rectangle colorBox = new Rectangle(30, 30, displayColor);
-        colorBox.setStroke(Color.BLACK);
-        colorBox.setArcWidth(5);
-        colorBox.setArcHeight(5);
-        colorBox.setCursor(javafx.scene.Cursor.HAND);
+        HBox topRow = new HBox(5, numberLabel, visibilityBtn, colorPicker, input, removeBtn);
+        topRow.setAlignment(Pos.CENTER_LEFT);
 
-        input.getProperties().put("originalColor", color);
-        input.getProperties().put("colorBox", colorBox);
-
-        Button colorButton = new Button();
-        colorButton.setGraphic(colorBox);
-        colorButton.setStyle("-fx-background-color: transparent; -fx-padding: 2; -fx-cursor: hand;");
-
-
-        Button removeButton = new Button("X");
-        removeButton.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
-        removeButton.setPrefWidth(40);
-
-        VBox cellBox = new VBox(5);
-        HBox row = new HBox(5, input, colorButton, removeButton);
         VBox sliderBox = new VBox(5);
-        sliderBox.setPadding(new Insets(0, 0, 0, 10));
+        sliderBox.setPadding(new Insets(5, 5, 5, 40));
 
-        cellBox.getChildren().addAll(row, sliderBox);
+        cellBox.getChildren().addAll(topRow, sliderBox);
         functionBox.getChildren().add(cellBox);
         textFields.add(input);
+        input.getProperties().put("colorPicker", colorPicker);
 
+        input.setOnMouseClicked(e -> {
+            if (textFields.indexOf(input) == textFields.size() - 1) setTextField();
+        });
+
+        // DESMOS-STYLE "EXIT EXPONENT" (Right Arrow)
+        input.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.RIGHT) {
+                int caret = input.getCaretPosition();
+                String text = input.getText();
+                if (caret > 0 && SUPER_CHARS.indexOf(text.charAt(caret - 1)) != -1) {
+                    if (caret == text.length() || text.charAt(caret) != '\u200B') {
+                        String newText = text.substring(0, caret) + "\u200B" + text.substring(caret);
+                        input.setText(newText);
+                        input.positionCaret(caret + 1);
+                        e.consume();
+                    }
+                }
+            }
+        });
+
+        // REAL-TIME DRAWING & "STICKY" SUPERSCRIPT ALGORITHM
+        input.textProperty().addListener((obs, oldText, newText) -> {
+            error.setText("");
+            if (newText == null) return;
+
+            String replaced = newText;
+            for (int i = 0; i < NORMAL_CHARS.length(); i++) {
+                replaced = replaced.replace("^" + NORMAL_CHARS.charAt(i), String.valueOf(SUPER_CHARS.charAt(i)));
+            }
+
+            char[] chars = replaced.toCharArray();
+            boolean modified = false;
+            for (int i = 1; i < chars.length; i++) {
+                if (SUPER_CHARS.indexOf(chars[i - 1]) != -1) {
+                    int normalIdx = NORMAL_CHARS.indexOf(chars[i]);
+                    if (normalIdx != -1) {
+                        chars[i] = SUPER_CHARS.charAt(normalIdx);
+                        modified = true;
+                    }
+                }
+            }
+            if (modified) replaced = new String(chars);
+
+            if (!replaced.equals(newText)) {
+                final String finalText = replaced;
+                javafx.application.Platform.runLater(() -> {
+                    int diff = newText.length() - finalText.length();
+                    int originalCaret = input.getCaretPosition();
+                    input.setText(finalText);
+                    input.positionCaret(Math.max(0, originalCaret - diff));
+                });
+                return;
+            }
+
+            if (onSubmit != null && !newText.trim().isEmpty()) {
+                onSubmit.accept(input, colorPicker.getValue());
+            }
+        });
+
+        // VISIBILITY LOGIC (Targeting Circle shape directly)
         boolean[] isVisible = {true};
-
-        colorButton.setOnAction(e -> {
+        visibilityBtn.setOnAction(e -> {
             isVisible[0] = !isVisible[0];
-            Color activeColor = getThemeColor(color);
-            colorBox.setFill(isVisible[0] ? activeColor : Color.WHITE);
-
+            if (isVisible[0]) {
+                visibilityCircle.setFill(colorPicker.getValue());
+                visibilityCircle.setStroke(Color.TRANSPARENT);
+            } else {
+                visibilityCircle.setFill(Color.TRANSPARENT);
+                visibilityCircle.setStroke(Color.GRAY);
+                visibilityCircle.setStrokeWidth(2);
+            }
             Object data = input.getUserData();
             if (data instanceof GraphFunction) {
-                GraphFunction func = (GraphFunction) data;
-                func.setVisible(isVisible[0]);
+                ((GraphFunction) data).setVisible(isVisible[0]);
                 canvas.redraw();
             }
         });
-        removeButton.setOnAction(e -> {
-            Object data = input.getUserData();
-            if (data instanceof GraphFunction)
-                canvas.removeFunction((GraphFunction) data);
 
+        // COLOR PICKER LOGIC
+        colorPicker.setOnAction(e -> {
+            Color newColor = colorPicker.getValue();
+            if (isVisible[0]) visibilityCircle.setFill(newColor);
+
+            Object data = input.getUserData();
+            if (data instanceof GraphFunction) {
+                ((GraphFunction) data).setColor(newColor);
+                canvas.redraw();
+            }
+        });
+
+        removeBtn.setOnAction(e -> {
+            Object data = input.getUserData();
+            if (data instanceof GraphFunction) canvas.removeFunction((GraphFunction) data);
             functionBox.getChildren().remove(cellBox);
             textFields.remove(input);
+            recalculateRowNumbers();
             canvas.redraw();
         });
 
-        input.textProperty().addListener((obs, oldText, newText) -> {
-                seterrLabel("");
-        });
-
-        //final GraphFunction[] functionHolder = new GraphFunction[1];
-
+        // SLIDER GENERATION: Happens on 'Enter'
         input.setOnAction(e -> {
-            if (onSubmit != null) {
-                Color activeColor = getThemeColor(color);
-                onSubmit.accept(input, activeColor);
-            }
-            if (textFields.indexOf(input) == textFields.size() - 1 && !input.getText().trim().isEmpty()) {
+            int currentIndex = textFields.indexOf(input);
+            if (currentIndex == textFields.size() - 1 && !input.getText().trim().isEmpty()) {
                 TextField nextInput = setTextField();
                 nextInput.requestFocus();
+            } else if (currentIndex < textFields.size() - 1) {
+                textFields.get(currentIndex + 1).requestFocus();
             }
 
             sliderBox.getChildren().clear();
             Object data = input.getUserData();
 
-
             if (data instanceof GraphFunction) {
                 GraphFunction func = (GraphFunction) data;
-
-
                 for (org.mariuszgromada.math.mxparser.Argument arg : func.getParameters()) {
                     Slider slider = new Slider(-10, 10, 1);
-                    javafx.scene.layout.HBox.setHgrow(slider, Priority.ALWAYS);
+                    HBox.setHgrow(slider, Priority.ALWAYS);
                     slider.setShowTickMarks(true);
 
                     Label sLabel = new Label(arg.getArgumentName() + " = ");
-                    TextField valueField = new TextField("1.00");
-                    valueField.setPrefWidth(50);
-                    String sTextFill = isDarkMode ? "white" : "black";
-                    String sFieldBg = isDarkMode ? "black" : "white";
-                    String sBorderColor = isDarkMode ? "#555" : "#777";
+                    sLabel.setStyle(isDarkMode ? "-fx-text-fill: white; -fx-font-weight: bold;" : "-fx-text-fill: #334155; -fx-font-weight: bold;");
 
-                    sLabel.setStyle("-fx-text-fill: " + sTextFill + ";");
-                    valueField.setStyle("-fx-text-fill: " + sTextFill + "; -fx-background-color: " + sFieldBg + "; -fx-border-color: " + sBorderColor + "; -fx-border-radius: 3;");
+                    TextField valueField = new TextField("1.00");
+                    valueField.setPrefWidth(55);
+                    valueField.setStyle("-fx-background-color: transparent; -fx-border-color: #cbd5e1; -fx-border-radius: 4;");
+                    if (isDarkMode) valueField.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-border-color: #475569; -fx-border-radius: 4;");
 
                     slider.valueProperty().addListener((o, oldNum, newNum) -> {
                         arg.setArgumentValue(newNum.doubleValue());
-                        sLabel.setText(arg.getArgumentName() + " = " + String.format("%.2f", newNum.doubleValue()));
+                        valueField.setText(String.format("%.2f", newNum.doubleValue()));
                         canvas.redraw();
                     });
 
-                    valueField.setOnAction(evt -> {
-                        try {
-                            double val = Double.parseDouble(valueField.getText());
-
-
-                            if (val < slider.getMin()) slider.setMin(val);
-                            if (val > slider.getMax()) slider.setMax(val);
-
-
-                            slider.setValue(val);
-                        } catch (NumberFormatException ex) {
-
-                            valueField.setText(String.format("%.2f", slider.getValue()));
-                        }
-                    });
-
-                    HBox sRow = new HBox(5, sLabel, valueField, slider);
+                    HBox sRow = new HBox(8, sLabel, valueField, slider);
                     sRow.setAlignment(Pos.CENTER_LEFT);
                     sliderBox.getChildren().add(sRow);
                 }
             }
         });
 
-
         return input;
     }
-    public List<TextField> getTextFields() {
-        return textFields;
+
+    private void recalculateRowNumbers() {
+        for (int i = 0; i < functionBox.getChildren().size(); i++) {
+            Node cellNode = functionBox.getChildren().get(i);
+            if (cellNode instanceof VBox) {
+                HBox topRow = (HBox) ((VBox) cellNode).getChildren().get(0);
+                Label numLabel = (Label) topRow.getChildren().get(0);
+                numLabel.setText(String.valueOf(i + 1));
+            }
+        }
     }
+
+    public List<TextField> getTextFields() { return textFields; }
 }

@@ -22,12 +22,20 @@ public class GraphRenderer {
         }
     }
 
+    public static class TangentLine {
+        public double px, py, m;
+        public Color color;
+        public TangentLine(double px, double py, double m, Color color) {
+            this.px = px; this.py = py; this.m = m; this.color = color;
+        }
+    }
+
     private final Coordinate_System coordSystem;
     private List<GraphFunction> functions = new ArrayList<>();
     private List<ShadedRegion> shadedRegions = new ArrayList<>();
-
     private List<KeyPoint> dynamicIntercepts = new ArrayList<>();
     private List<KeyPoint> tangentPoints = new ArrayList<>();
+    private List<TangentLine> tangentLines = new ArrayList<>();
 
     private double lineWidth = 2;
     private int res = 1;
@@ -43,6 +51,14 @@ public class GraphRenderer {
 
     public void clearTangentPoints() {
         tangentPoints.clear();
+    }
+
+    public void addTangentLine(double x, double y, double m, Color c) {
+        tangentLines.add(new TangentLine(x, y, m, c));
+    }
+
+    public void clearTangentLines() {
+        tangentLines.clear();
     }
 
     public List<KeyPoint> getAllKeyPoints() {
@@ -64,11 +80,10 @@ public class GraphRenderer {
     }
 
     public void updateFunction(int index, GraphFunction f) {
-        if (index >= 0 && index < functions.size()) {
-            functions.set(index, f);
-        } else {
-            functions.add(f);
+        while (functions.size() <= index) {
+            functions.add(null);
         }
+        functions.set(index, f);
     }
 
     public void removeFunction(GraphFunction f) {
@@ -76,6 +91,7 @@ public class GraphRenderer {
             functions.remove(f);
         }
         clearTangentPoints();
+        clearTangentLines();
     }
 
     public void drawGraph(GraphicsContext gc, boolean isDarkMode, Runnable onRenderComplete) {
@@ -92,43 +108,111 @@ public class GraphRenderer {
             List<Runnable> drawCalls = new ArrayList<>();
             List<KeyPoint> newIntercepts = new ArrayList<>();
 
+            // --- ADVANCED SHADING & INTERACTIVE BOUNDS ---
             for (ShadedRegion region : renderRegions) {
-                double screenStartX = coordSystem.worldToScreenX(region.a);
-                double screenEndX = coordSystem.worldToScreenX(region.b);
-                int numSteps = (int) Math.max(10, Math.abs(screenEndX - screenStartX));
-                double step = (region.b - region.a) / numSteps;
+                double min = Math.min(region.a, region.b);
+                double max = Math.max(region.a, region.b);
+                int numSteps = 500;
+                double step = (max - min) / numSteps;
 
                 double[] xPoints = new double[numSteps * 2 + 2];
                 double[] yPoints = new double[numSteps * 2 + 2];
                 int index = 0;
 
+                // 1. Forward Path (Primary Function)
                 for (int i = 0; i <= numSteps; i++) {
-                    double worldX = region.a + (i * step);
-                    xPoints[index] = coordSystem.worldToScreenX(worldX);
-                    yPoints[index] = coordSystem.worldToScreenY(region.f1.evaluate(worldX));
+                    double val = min + (i * step);
+                    if (region.f1.getType() == GraphFunction.Type.PARAMETRIC) {
+                        xPoints[index] = coordSystem.worldToScreenX(region.f1.evaluateT(val));
+                        yPoints[index] = coordSystem.worldToScreenY(region.f1.evaluateParametricY(val));
+                    } else if (region.f1.getType() == GraphFunction.Type.POLAR) {
+                        double r = region.f1.evaluateT(val);
+                        xPoints[index] = coordSystem.worldToScreenX(r * Math.cos(val));
+                        yPoints[index] = coordSystem.worldToScreenY(r * Math.sin(val));
+                    } else if (!region.isRespectToY) {
+                        xPoints[index] = coordSystem.worldToScreenX(val);
+                        yPoints[index] = coordSystem.worldToScreenY(region.f1.evaluate(val));
+                    } else {
+                        yPoints[index] = coordSystem.worldToScreenY(val);
+                        xPoints[index] = coordSystem.worldToScreenX(region.f1.evaluate(val));
+                    }
                     index++;
                 }
+
+                // 2. Return Path (Secondary Function, Origin, or Axis)
                 for (int i = numSteps; i >= 0; i--) {
-                    double worldX = region.a + (i * step);
-                    xPoints[index] = coordSystem.worldToScreenX(worldX);
-                    double yVal = (region.f2 != null) ? region.f2.evaluate(worldX) : 0;
-                    yPoints[index] = coordSystem.worldToScreenY(yVal);
+                    double val = min + (i * step);
+                    if (region.f1.getType() == GraphFunction.Type.PARAMETRIC) {
+                        xPoints[index] = coordSystem.worldToScreenX(region.f1.evaluateT(val));
+                        yPoints[index] = coordSystem.worldToScreenY(0);
+                    } else if (region.f1.getType() == GraphFunction.Type.POLAR) {
+                        xPoints[index] = coordSystem.worldToScreenX(0);
+                        yPoints[index] = coordSystem.worldToScreenY(0);
+                    } else if (!region.isRespectToY) {
+                        xPoints[index] = coordSystem.worldToScreenX(val);
+                        double yVal = (region.f2 != null) ? region.f2.evaluate(val) : 0;
+                        yPoints[index] = coordSystem.worldToScreenY(yVal);
+                    } else {
+                        yPoints[index] = coordSystem.worldToScreenY(val);
+                        double xVal = (region.f2 != null) ? region.f2.evaluate(val) : 0;
+                        xPoints[index] = coordSystem.worldToScreenX(xVal);
+                    }
                     index++;
                 }
 
                 int finalIndex = index;
                 drawCalls.add(() -> {
+                    // Fill Shading
                     gc.setFill(region.color.deriveColor(1, 1, 1, 0.3));
                     gc.fillPolygon(xPoints, yPoints, finalIndex);
+
+                    // Draw Dotted Bounds & Hollow Intersections (Cartesian Only)
+                    if (region.f1.getType() != GraphFunction.Type.PARAMETRIC && region.f1.getType() != GraphFunction.Type.POLAR) {
+                        gc.setStroke(region.color);
+                        gc.setLineWidth(1.5);
+                        gc.setLineDashes(5, 5);
+
+                        if (!region.isRespectToY) {
+                            double sxA = coordSystem.worldToScreenX(region.a);
+                            double sxB = coordSystem.worldToScreenX(region.b);
+                            gc.strokeLine(sxA, 0, sxA, height);
+                            gc.strokeLine(sxB, 0, sxB, height);
+
+                            drawHollowDot(gc, sxA, coordSystem.worldToScreenY(region.f1.evaluate(region.a)), region.color, isDarkMode);
+                            drawHollowDot(gc, sxB, coordSystem.worldToScreenY(region.f1.evaluate(region.b)), region.color, isDarkMode);
+                            if (region.f2 != null) {
+                                drawHollowDot(gc, sxA, coordSystem.worldToScreenY(region.f2.evaluate(region.a)), region.color, isDarkMode);
+                                drawHollowDot(gc, sxB, coordSystem.worldToScreenY(region.f2.evaluate(region.b)), region.color, isDarkMode);
+                            } else {
+                                drawHollowDot(gc, sxA, coordSystem.worldToScreenY(0), region.color, isDarkMode);
+                                drawHollowDot(gc, sxB, coordSystem.worldToScreenY(0), region.color, isDarkMode);
+                            }
+                        } else {
+                            double syA = coordSystem.worldToScreenY(region.a);
+                            double syB = coordSystem.worldToScreenY(region.b);
+                            gc.strokeLine(0, syA, width, syA);
+                            gc.strokeLine(0, syB, width, syB);
+
+                            drawHollowDot(gc, coordSystem.worldToScreenX(region.f1.evaluate(region.a)), syA, region.color, isDarkMode);
+                            drawHollowDot(gc, coordSystem.worldToScreenX(region.f1.evaluate(region.b)), syB, region.color, isDarkMode);
+                            if (region.f2 != null) {
+                                drawHollowDot(gc, coordSystem.worldToScreenX(region.f2.evaluate(region.a)), syA, region.color, isDarkMode);
+                                drawHollowDot(gc, coordSystem.worldToScreenX(region.f2.evaluate(region.b)), syB, region.color, isDarkMode);
+                            } else {
+                                drawHollowDot(gc, coordSystem.worldToScreenX(0), syA, region.color, isDarkMode);
+                                drawHollowDot(gc, coordSystem.worldToScreenX(0), syB, region.color, isDarkMode);
+                            }
+                        }
+                        gc.setLineDashes(null);
+                    }
                 });
             }
 
             for (GraphFunction function : renderFunctions) {
-                if (!function.isVisible()) continue;
-
+                if (function == null || !function.isVisible()) continue;
                 Color funcColor = function.getColor();
 
-                if (function.isImplicit()) {
+                if (function.getType() == GraphFunction.Type.IMPLICIT) {
                     int cols = (int) (width / res) + 1;
                     int rows = (int) (height / res) + 1;
                     double[][] values = new double[cols + 1][rows + 1];
@@ -144,7 +228,6 @@ public class GraphRenderer {
                         }
                     }
 
-                    // --- RADAR SWEEP: Implicit X & Y Intercepts ---
                     double prevValX = function.evaluate(coordSystem.screenToWorldX(0), 0);
                     for (int i = 1; i <= width; i += 2) {
                         double wx = coordSystem.screenToWorldX(i);
@@ -221,6 +304,54 @@ public class GraphRenderer {
                         gc.restore();
                     });
 
+                } else if (function.getType() == GraphFunction.Type.PARAMETRIC || function.getType() == GraphFunction.Type.POLAR) {
+                    drawCalls.add(() -> {
+                        gc.save();
+                        gc.setStroke(funcColor);
+                        gc.setLineWidth(lineWidth);
+                        gc.setLineCap(StrokeLineCap.ROUND);
+                        gc.setLineJoin(StrokeLineJoin.ROUND);
+                        gc.beginPath();
+
+                        double tMin = 0;
+                        double tMax = 12 * Math.PI;
+                        int steps = 2000;
+                        double dt = (tMax - tMin) / steps;
+                        boolean isFirstPoint = true;
+
+                        for (int i = 0; i <= steps; i++) {
+                            if (renderVersion.get() != currentVersion) return;
+
+                            double t = tMin + (i * dt);
+                            double x, y;
+
+                            if (function.getType() == GraphFunction.Type.PARAMETRIC) {
+                                x = function.evaluateT(t);
+                                y = function.evaluateParametricY(t);
+                            } else {
+                                double r = function.evaluateT(t);
+                                x = r * Math.cos(t);
+                                y = r * Math.sin(t);
+                            }
+
+                            if (Double.isNaN(x) || Double.isNaN(y)) {
+                                isFirstPoint = true;
+                                continue;
+                            }
+
+                            double sx = coordSystem.worldToScreenX(x);
+                            double sy = coordSystem.worldToScreenY(y);
+
+                            if (isFirstPoint) {
+                                gc.moveTo(sx, sy);
+                                isFirstPoint = false;
+                            } else {
+                                gc.lineTo(sx, sy);
+                            }
+                        }
+                        gc.stroke();
+                        gc.restore();
+                    });
                 } else {
                     int w = (int) width;
                     double[] xVals = new double[w + 1];
@@ -262,7 +393,6 @@ public class GraphRenderer {
                                     newIntercepts.add(new KeyPoint(0, rootY, funcColor));
                                 }
                             }
-
                             prevX = x;
                             prevY = y;
                         }
@@ -277,13 +407,30 @@ public class GraphRenderer {
                 if (renderVersion.get() != currentVersion) return;
 
                 dynamicIntercepts = newIntercepts;
-
                 if (onRenderComplete != null) onRenderComplete.run();
-
                 gc.clearRect(0, 0, width, height);
 
                 for (Runnable drawCall : drawCalls) {
                     drawCall.run();
+                }
+
+                // Draw Tangent Lines
+                for (TangentLine line : tangentLines) {
+                    gc.setStroke(line.color);
+                    gc.setLineWidth(1.5);
+                    gc.setLineDashes(8, 4);
+
+                    double x1 = coordSystem.getViewport().getXMin();
+                    double y1 = line.m * (x1 - line.px) + line.py;
+
+                    double x2 = coordSystem.getViewport().getXMax();
+                    double y2 = line.m * (x2 - line.px) + line.py;
+
+                    gc.strokeLine(
+                            coordSystem.worldToScreenX(x1), coordSystem.worldToScreenY(y1),
+                            coordSystem.worldToScreenX(x2), coordSystem.worldToScreenY(y2)
+                    );
+                    gc.setLineDashes(null);
                 }
 
                 Color dotInside = isDarkMode ? Color.web("#1e1e1e") : Color.WHITE;
@@ -300,8 +447,17 @@ public class GraphRenderer {
                     }
                 }
             });
-
         }).start();
+    }
+
+    private void drawHollowDot(GraphicsContext gc, double x, double y, Color color, boolean isDarkMode) {
+        gc.setFill(isDarkMode ? Color.web("#1e1e1e") : Color.WHITE);
+        gc.fillOval(x - 5, y - 5, 10, 10);
+        gc.setStroke(color);
+        gc.setLineWidth(2);
+        gc.setLineDashes(null);
+        gc.strokeOval(x - 5, y - 5, 10, 10);
+        gc.setLineDashes(5, 5);
     }
 
     private int getState(double a,double b,double c,double d){

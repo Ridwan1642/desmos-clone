@@ -63,9 +63,10 @@ public class Main extends Application {
         canvasLayers.prefHeightProperty().bind(canvasContainer.heightProperty());
 
         BorderPane root = new BorderPane();
+        StackPane superRoot = new StackPane(root);
 
         Button homeButton = new Button("🏡");
-        homeButton.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 30px; -fx-padding: 5 10 5 10;");
+        homeButton.getStyleClass().add("icon-button");
         AnchorPane.setTopAnchor(homeButton, 15.0);
         AnchorPane.setRightAnchor(homeButton, 15.0);
 
@@ -75,12 +76,10 @@ public class Main extends Application {
             canvas.redraw();
         });
 
-        canvasContainer.getChildren().add(homeButton);
 
         menu = new Menu((inputField, color) -> {
             try {
                 int index = menu.getTextFields().indexOf(inputField);
-
                 if (index != -1) {
                     GraphFunction function = new GraphFunction(inputField.getText().trim(), color);
                     inputField.setUserData(function);
@@ -97,7 +96,6 @@ public class Main extends Application {
         integralStage.initStyle(StageStyle.UTILITY);
         integralStage.initOwner(primaryStage);
         integralStage.setScene(new Scene(integralCalculator));
-        integralStage.setResizable(false);
 
         SlopeCalculator slopeCalculator = new SlopeCalculator(menu, canvas);
         Stage slopeStage = new Stage();
@@ -105,23 +103,16 @@ public class Main extends Application {
         slopeStage.initStyle(StageStyle.UTILITY);
         slopeStage.initOwner(primaryStage);
         slopeStage.setScene(new Scene(slopeCalculator));
-        slopeStage.setResizable(false);
 
         HBox toolBar = new HBox(15);
         toolBar.setAlignment(Pos.CENTER_LEFT);
-        toolBar.setStyle("-fx-background-color: #2b2b2b; -fx-padding: 10 20 10 20; -fx-border-color: #444; -fx-border-width: 0 0 1 0;");
+        toolBar.getStyleClass().add("toolbar-background");
 
         Button toggleMenuButton = new Button("☰ Menu");
+        toggleMenuButton.getStyleClass().add("nav-button");
+
         Button themeBtn = new Button("🌙 Dark Mode");
-
-        String topBtnIdle = "-fx-background-color: #333; -fx-text-fill: #e0e0e0; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: bold;";
-        String topBtnHover = "-fx-background-color: #505050; -fx-text-fill: #e0e0e0; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: bold;";
-
-        for (Button btn : new Button[]{toggleMenuButton, themeBtn}) {
-            btn.setStyle(topBtnIdle);
-            btn.setOnMouseEntered(e -> btn.setStyle(topBtnHover));
-            btn.setOnMouseExited(e -> btn.setStyle(topBtnIdle));
-        }
+        themeBtn.getStyleClass().add("nav-button");
 
         toggleMenuButton.setOnAction(e -> {
             if (menuVisible) {
@@ -137,28 +128,18 @@ public class Main extends Application {
         themeBtn.setOnAction(e -> {
             isDarkMode = !isDarkMode;
 
-            try {
-                String css = getClass().getResource("/dark-theme.css").toExternalForm();
-
-                if (isDarkMode) {
-                    root.getScene().getStylesheets().add(css);
-                    integralStage.getScene().getStylesheets().add(css);
-                    slopeStage.getScene().getStylesheets().add(css);
-                    themeBtn.setText("☀️ Light Mode");
-                } else {
-                    root.getScene().getStylesheets().clear();
-                    integralStage.getScene().getStylesheets().clear();
-                    slopeStage.getScene().getStylesheets().clear();
-                    themeBtn.setText("🌙 Dark Mode");
-                }
-            } catch (NullPointerException ex) {
-                System.out.println("Could not find dark-theme.css in the resources folder!");
+            if (isDarkMode) {
+                superRoot.getStyleClass().add("dark-theme");
+                integralStage.getScene().getRoot().getStyleClass().add("dark-theme");
+                slopeStage.getScene().getRoot().getStyleClass().add("dark-theme");
+                themeBtn.setText("☀️ Light Mode");
+            } else {
+                superRoot.getStyleClass().remove("dark-theme");
+                integralStage.getScene().getRoot().getStyleClass().remove("dark-theme");
+                slopeStage.getScene().getRoot().getStyleClass().remove("dark-theme");
+                themeBtn.setText("🌙 Dark Mode");
             }
-
             canvas.setDarkMode(isDarkMode);
-            menu.setDarkMode(isDarkMode);
-            slopeCalculator.setDarkMode(isDarkMode);
-            integralCalculator.setDarkMode(isDarkMode);
         });
 
         Region spacer = new Region();
@@ -168,26 +149,15 @@ public class Main extends Application {
         Button slopeBtn = new Button("📐 Tangent");
         Button integralBtn = new Button("∫ Area");
 
+        for (Button btn : new Button[]{bestFitBtn, slopeBtn, integralBtn}) {
+            btn.getStyleClass().add("nav-button");
+        }
+
         HBox mathTools = new HBox(10, bestFitBtn, slopeBtn, integralBtn);
         mathTools.setAlignment(Pos.CENTER_RIGHT);
 
-        String toolBtnIdle = "-fx-background-color: #333; -fx-text-fill: #e0e0e0; -fx-cursor: hand; -fx-font-size: 14px;";
-        String toolBtnHover = "-fx-background-color: #505050; -fx-text-fill: #e0e0e0; -fx-cursor: hand; -fx-font-size: 14px;";
-
-        for (Button btn : new Button[]{bestFitBtn, slopeBtn, integralBtn}) {
-            btn.setStyle(toolBtnIdle);
-            btn.setOnMouseEntered(e -> btn.setStyle(toolBtnHover));
-            btn.setOnMouseExited(e -> btn.setStyle(toolBtnIdle));
-        }
-
         bestFitBtn.setOnAction(e -> {
             BestFitDialog dialog = new BestFitDialog(isDarkMode);
-            if (isDarkMode) {
-                try {
-                    dialog.getDialogPane().getStylesheets().add(getClass().getResource("/dark-theme.css").toExternalForm());
-                } catch (Exception ex) { }
-            }
-
             dialog.showAndWait().ifPresent(equation -> {
                 if (equation != null && !equation.isEmpty()) {
                     TextField newRow = menu.setTextField();
@@ -197,12 +167,15 @@ public class Main extends Application {
             });
         });
 
+        // --- NEW: THE MISSING REFRESH CALLS ---
         slopeBtn.setOnAction(e -> {
+            slopeCalculator.refresh(); // Syncs the UI BEFORE opening to prevent ghost indices!
             if (slopeStage.isShowing()) slopeStage.toFront();
             else slopeStage.show();
         });
 
         integralBtn.setOnAction(e -> {
+            integralCalculator.refresh(); // Syncs the UI BEFORE opening
             if (integralStage.isShowing()) integralStage.toFront();
             else integralStage.show();
         });
@@ -212,15 +185,24 @@ public class Main extends Application {
         root.setCenter(canvasContainer);
         root.setLeft(menu);
 
-        StackPane superRoot = new StackPane(root);
-
         StackPane splashScreen = buildSplashScreen(superRoot);
         superRoot.getChildren().add(splashScreen);
 
-        Scene scene = new Scene(superRoot, 800, 600);
-        primaryStage.setTitle("Graphing App Test");
+        Scene scene = new Scene(superRoot, 1000, 700);
+
+        try {
+            String css = getClass().getResource("/ui/theme.css").toExternalForm();
+            scene.getStylesheets().add(css);
+            integralStage.getScene().getStylesheets().add(css);
+            slopeStage.getScene().getStylesheets().add(css);
+        } catch (Exception ex) {
+            System.err.println("Could not load theme.css! Ensure it is in src/main/resources/ui/");
+        }
+
+        primaryStage.setTitle("Desmos++ Graphing Engine");
         primaryStage.setScene(scene);
         primaryStage.show();
+
     }
 
     private StackPane buildSplashScreen(StackPane superRoot) {
