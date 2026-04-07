@@ -8,7 +8,6 @@ import java.util.List;
 
 public class GraphFunction {
 
-    // --- The new Enum to define equation types ---
     public enum Type { CARTESIAN, IMPLICIT, PARAMETRIC, POLAR }
 
     private static final String NORMAL_CHARS = "0123456789xyn+-().t";
@@ -27,6 +26,8 @@ public class GraphFunction {
     private boolean isImplicit = false;
     private Type type = Type.CARTESIAN;
     private List<Argument> parameters = new ArrayList<>();
+    private double tMin =0;
+    private double tMax = 1;
 
     public GraphFunction(String formula, Color color) {
         this.color = color;
@@ -35,12 +36,16 @@ public class GraphFunction {
         if (cleanFormula.startsWith("r=")) {
             type = Type.POLAR;
             isImplicit = false;
+            tMin = 0;
+            tMax = 12*Math.PI;
             String rightSide = cleanFormula.substring(cleanFormula.indexOf("=") + 1).trim();
             expression = new Expression(rightSide, tArg, thetaArg);
         }
         else if (cleanFormula.startsWith("(") && cleanFormula.endsWith(")") && cleanFormula.contains(",")) {
             type = Type.PARAMETRIC;
             isImplicit = false;
+            tMin = 0;
+            tMax = 1;
             String inside = cleanFormula.substring(1, cleanFormula.length() - 1);
             String[] parts = inside.split(",", 2);
             expression = new Expression(parts[0].trim(), tArg, thetaArg);
@@ -64,10 +69,10 @@ public class GraphFunction {
             expression = new Expression(cleanFormula, xArg);
         }
 
-        // 2. Syntax Check & Custom Parameters
         if (type == Type.PARAMETRIC) {
             extractParameters(expression);
             extractParameters(exprY);
+
         } else {
             extractParameters(expression);
         }
@@ -127,7 +132,10 @@ public class GraphFunction {
 
         return processed.toString();
     }
-
+    public double getTMin() { return tMin; }
+    public void setTMin(double tMin) { this.tMin = tMin; }
+    public double getTMax() { return tMax; }
+    public void setTMax(double tMax) { this.tMax = tMax; }
     public Type getType() { return type; }
     public boolean isImplicit() { return isImplicit; }
     public Color getColor() { return color; }
@@ -157,5 +165,27 @@ public class GraphFunction {
         tArg.setArgumentValue(t);
         thetaArg.setArgumentValue(t);
         return exprY.calculate();
+    }
+
+    public double inverseEvaluate(double targetY, double guessX) {
+        double x = guessX;
+        for (int i = 0; i < 30; i++) {
+            double currentY = evaluate(x);
+            double diff = currentY - targetY;
+
+            if (Math.abs(diff) < 1e-6) return x;
+
+            double h = 1e-5;
+            double derivative = (evaluate(x + h) - evaluate(x - h)) / (2 * h);
+
+            if (Math.abs(derivative) < 1e-12) {
+                x += 0.5;
+                continue;
+            }
+            x = x - (diff / derivative);
+        }
+
+        if (Math.abs(evaluate(x) - targetY) > 1e-2) return Double.NaN;
+        return x;
     }
 }

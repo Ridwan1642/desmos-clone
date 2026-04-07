@@ -66,7 +66,7 @@ public class GraphCanvas extends Canvas {
             draggingBound = null;
 
             if (activeRegion != null) {
-                double tolerance = 15; // 15 pixel grab radius
+                double tolerance = 15;
                 if (!activeRegion.isRespectToY) {
                     double sxA = coordSystem.worldToScreenX(activeRegion.a);
                     double sxB = coordSystem.worldToScreenX(activeRegion.b);
@@ -164,7 +164,6 @@ public class GraphCanvas extends Canvas {
         this.mathCanvas = math;
         this.overlayCanvas = overlay;
     }
-    // --- NEW: INTERACTIVE BRIDGE METHODS ---
     public void setInteractiveIntegration(ShadedRegion region, java.util.function.BiConsumer<Double, Double> callback) {
         this.activeRegion = region;
         this.onBoundsChanged = callback;
@@ -217,7 +216,6 @@ public class GraphCanvas extends Canvas {
 
     private void redrawMath() {
         if (mathCanvas != null) {
-            // Pass the dark mode flag so the renderer knows how to color the inside of the dots
             graphRenderer.drawGraph(mathCanvas.getGraphicsContext2D(), isDarkMode, () -> {
                 mathCanvas.getTransforms().clear();
                 mathCanvas.setTranslateX(0);
@@ -257,7 +255,7 @@ public class GraphCanvas extends Canvas {
             if (Math.hypot(mouseX - sx, mouseY - sy) < 12) {
                 worldX = kp.x;
                 worldY = kp.y;
-                mouseX = sx; // Snap visual crosshair to the exact pixel
+                mouseX = sx;
                 mouseY = sy;
                 snapped = true;
                 snapColor = kp.color;
@@ -316,10 +314,8 @@ public class GraphCanvas extends Canvas {
         graphRenderer.clearTangentPoints();
         redrawMath();
     }
-    // --- MISSING TANGENT LINE BRIDGE METHODS ---
 
     public void addTangentLine(double x, double y, double m, Color color) {
-        // We pass the 'm' (slope) and add a little transparency to the line so it looks distinct
         graphRenderer.addTangentLine(x, y, m, color.deriveColor(0, 1, 1, 0.7));
         redrawMath();
     }

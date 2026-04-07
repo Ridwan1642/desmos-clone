@@ -20,7 +20,7 @@ public class BestFitDialog extends Dialog<String> {
     private final boolean isDarkMode;
     private TableView<DataPoint> table;
     private ObservableList<DataPoint> dataPoints;
-    private Label errorLabel; // NEW: Inline error label
+    private Label errorLabel;
 
     public static class DataPoint {
         private final SimpleStringProperty x;
@@ -99,19 +99,18 @@ public class BestFitDialog extends Dialog<String> {
         clearBtn.setOnAction(e -> {
             dataPoints.clear();
             dataPoints.add(new DataPoint("", ""));
-            errorLabel.setText(""); // Clear errors on reset
+            errorLabel.setText("");
         });
 
         HBox topControls = new HBox(10, clearBtn);
         topControls.setAlignment(Pos.CENTER);
 
-        // NEW: Initialize the error label
+
         errorLabel = new Label();
         errorLabel.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold; -fx-font-size: 13px;");
         errorLabel.setAlignment(Pos.CENTER);
         errorLabel.setMaxWidth(Double.MAX_VALUE);
 
-        // Add errorLabel to the bottom of the main layout
         VBox mainLayout = new VBox(15, topControls, table, errorLabel);
         mainLayout.setPadding(new Insets(10, 0, 0, 0));
         VBox.setVgrow(table, Priority.ALWAYS);
@@ -125,7 +124,7 @@ public class BestFitDialog extends Dialog<String> {
             calcNode.getStyleClass().add("primary-btn");
 
             calcNode.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
-                table.edit(-1, null); // Force commit any active typing
+                table.edit(-1, null);
                 String result = processInputAndCalculate();
 
                 if (result.startsWith("Error:")) {

@@ -76,9 +76,8 @@ public class SlopeCalculator extends VBox {
         drawLineCheck.setSelected(true);
         drawLineCheck.getStyleClass().add("calc-label");
 
-        // --- NEW: Add to Menu CheckBox ---
         addToMenuCheck = new CheckBox("Add Tangent to Function List");
-        addToMenuCheck.setSelected(false); // Default to false to prevent accidental menu spam
+        addToMenuCheck.setSelected(false);
         addToMenuCheck.getStyleClass().add("calc-label");
 
         funcDropdown.setOnAction(e -> {
@@ -114,7 +113,7 @@ public class SlopeCalculator extends VBox {
         grid.add(yInputLabel, 0, 4);
         grid.add(yInputField, 0, 5);
         grid.add(drawLineCheck, 0, 6);
-        grid.add(addToMenuCheck, 0, 7); // --- NEW: Added beneath the draw toggle ---
+        grid.add(addToMenuCheck, 0, 7);
 
         ColumnConstraints col1 = new ColumnConstraints();
         col1.setPercentWidth(100);
@@ -156,7 +155,6 @@ public class SlopeCalculator extends VBox {
         error = new Label("");
         error.getStyleClass().add("error-label");
 
-        // --- MATH LOGIC ---
         calcBtn.setOnAction(e -> {
             try {
                 int selIdx = funcDropdown.getSelectionModel().getSelectedIndex();
@@ -236,16 +234,12 @@ public class SlopeCalculator extends VBox {
                     canvas.addTangentLine(px, py, m, f.getColor());
                 }
 
-                // --- NEW: ADD TO MENU LOGIC ---
                 if (addToMenuCheck.isSelected() && !Double.isNaN(m)) {
-                    // 1. Calculate the Y-Intercept algebraically
                     double yInt = py - m * px;
                     String signForMenu = yInt >= 0 ? "+" : "-";
 
-                    // 2. Format the string safely for mxparser (e.g. 2.500*x + 1.200)
                     String eqStr = String.format("%.4f*x %s %.4f", m, signForMenu, Math.abs(yInt));
 
-                    // 3. Smart Row Finder: Look for an existing empty row first!
                     TextField targetRow = null;
                     for (TextField tf : menu.getTextFields()) {
                         if (tf.getText().trim().isEmpty()) {
@@ -254,16 +248,12 @@ public class SlopeCalculator extends VBox {
                         }
                     }
 
-                    // If absolutely no empty rows exist, create one
                     if (targetRow == null) {
                         targetRow = menu.setTextField();
                     }
 
-                    // 4. Fill the text and fire the Enter event
                     targetRow.setText(eqStr);
                     targetRow.fireEvent(new javafx.event.ActionEvent(javafx.event.ActionEvent.ACTION, targetRow));
-
-                    // Auto-uncheck it so clicking "Calculate" repeatedly doesn't spam the sidebar
                     addToMenuCheck.setSelected(false);
                 }
 

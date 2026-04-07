@@ -150,12 +150,13 @@ public class Main extends Application {
         Button bestFitBtn = new Button("📈 Best Fit");
         Button slopeBtn = new Button("📐 Tangent");
         Button integralBtn = new Button("∫ Area");
+        Button clearAreaBtn = new Button("✖ Clear Area");
 
-        for (Button btn : new Button[]{bestFitBtn, slopeBtn, integralBtn}) {
+        for (Button btn : new Button[]{bestFitBtn, slopeBtn, integralBtn,clearAreaBtn}) {
             btn.getStyleClass().add("nav-button");
         }
 
-        HBox mathTools = new HBox(10, bestFitBtn, slopeBtn, integralBtn);
+        HBox mathTools = new HBox(10, bestFitBtn, slopeBtn, integralBtn,clearAreaBtn);
         mathTools.setAlignment(Pos.CENTER_RIGHT);
 
         bestFitBtn.setOnAction(e -> {
@@ -188,6 +189,9 @@ public class Main extends Application {
             integralCalculator.refresh();
             if (integralStage.isShowing()) integralStage.toFront();
             else integralStage.show();
+        });
+        clearAreaBtn.setOnAction(e -> {
+            canvas.clearInteractiveIntegration();
         });
 
         toolBar.getChildren().addAll(toggleMenuButton, themeBtn, spacer, mathTools);

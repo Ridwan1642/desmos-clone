@@ -116,7 +116,6 @@ public class GraphRenderer {
             List<Runnable> drawCalls = new ArrayList<>();
             List<KeyPoint> newIntercepts = new ArrayList<>();
 
-            // --- ADVANCED SHADING & INTERACTIVE BOUNDS ---
             for (ShadedRegion region : renderRegions) {
                 double min = Math.min(region.a, region.b);
                 double max = Math.max(region.a, region.b);
@@ -127,7 +126,9 @@ public class GraphRenderer {
                 double[] yPoints = new double[numSteps * 2 + 2];
                 int index = 0;
 
-                // 1. Forward Path (Primary Function)
+                double trackX1 = 0.1;
+                double trackX2 = 0.1;
+
                 for (int i = 0; i <= numSteps; i++) {
                     double val = min + (i * step);
                     if (region.f1.getType() == GraphFunction.Type.PARAMETRIC) {
@@ -142,12 +143,12 @@ public class GraphRenderer {
                         yPoints[index] = coordSystem.worldToScreenY(region.f1.evaluate(val));
                     } else {
                         yPoints[index] = coordSystem.worldToScreenY(val);
-                        xPoints[index] = coordSystem.worldToScreenX(region.f1.evaluate(val));
+                        trackX1 = region.f1.inverseEvaluate(val, trackX1);
+                        xPoints[index] = coordSystem.worldToScreenX(trackX1);
                     }
                     index++;
                 }
 
-                // 2. Return Path (Secondary Function, Origin, or Axis)
                 for (int i = numSteps; i >= 0; i--) {
                     double val = min + (i * step);
                     if (region.f1.getType() == GraphFunction.Type.PARAMETRIC) {
@@ -162,19 +163,21 @@ public class GraphRenderer {
                         yPoints[index] = coordSystem.worldToScreenY(yVal);
                     } else {
                         yPoints[index] = coordSystem.worldToScreenY(val);
-                        double xVal = (region.f2 != null) ? region.f2.evaluate(val) : 0;
-                        xPoints[index] = coordSystem.worldToScreenX(xVal);
+                        if (region.f2 != null) {
+                            trackX2 = region.f2.inverseEvaluate(val, trackX2);
+                        } else {
+                            trackX2 = 0;
+                        }
+                        xPoints[index] = coordSystem.worldToScreenX(trackX2);
                     }
                     index++;
                 }
 
                 int finalIndex = index;
                 drawCalls.add(() -> {
-                    // Fill Shading
                     gc.setFill(region.color.deriveColor(1, 1, 1, 0.3));
                     gc.fillPolygon(xPoints, yPoints, finalIndex);
 
-                    // Draw Dotted Bounds & Hollow Intersections (Cartesian Only)
                     if (region.f1.getType() != GraphFunction.Type.PARAMETRIC && region.f1.getType() != GraphFunction.Type.POLAR) {
                         gc.setStroke(region.color);
                         gc.setLineWidth(1.5);
@@ -201,11 +204,17 @@ public class GraphRenderer {
                             gc.strokeLine(0, syA, width, syA);
                             gc.strokeLine(0, syB, width, syB);
 
-                            drawHollowDot(gc, coordSystem.worldToScreenX(region.f1.evaluate(region.a)), syA, region.color, isDarkMode);
-                            drawHollowDot(gc, coordSystem.worldToScreenX(region.f1.evaluate(region.b)), syB, region.color, isDarkMode);
+                            double invX1A = region.f1.inverseEvaluate(region.a, 0.1);
+                            double invX1B = region.f1.inverseEvaluate(region.b, invX1A);
+
+                            drawHollowDot(gc, coordSystem.worldToScreenX(invX1A), syA, region.color, isDarkMode);
+                            drawHollowDot(gc, coordSystem.worldToScreenX(invX1B), syB, region.color, isDarkMode);
+
                             if (region.f2 != null) {
-                                drawHollowDot(gc, coordSystem.worldToScreenX(region.f2.evaluate(region.a)), syA, region.color, isDarkMode);
-                                drawHollowDot(gc, coordSystem.worldToScreenX(region.f2.evaluate(region.b)), syB, region.color, isDarkMode);
+                                double invX2A = region.f2.inverseEvaluate(region.a, 0.1);
+                                double invX2B = region.f2.inverseEvaluate(region.b, invX2A);
+                                drawHollowDot(gc, coordSystem.worldToScreenX(invX2A), syA, region.color, isDarkMode);
+                                drawHollowDot(gc, coordSystem.worldToScreenX(invX2B), syB, region.color, isDarkMode);
                             } else {
                                 drawHollowDot(gc, coordSystem.worldToScreenX(0), syA, region.color, isDarkMode);
                                 drawHollowDot(gc, coordSystem.worldToScreenX(0), syB, region.color, isDarkMode);
@@ -315,9 +324,9 @@ public class GraphRenderer {
                     });
 
                 } else if (function.getType() == GraphFunction.Type.PARAMETRIC || function.getType() == GraphFunction.Type.POLAR) {
-                    double tMin = 0;
-                    double tMax = 12 * Math.PI;
-                    int steps = 2000;
+                    double tMin = function.getTMin();
+                    double tMax = function.getTMax();
+                    int steps = (int) Math.max(2000, Math.abs(tMax - tMin) * 200);
                     double dt = (tMax - tMin) / steps;
 
                     double[] xPoints = new double[steps + 1];
@@ -325,7 +334,7 @@ public class GraphRenderer {
                     boolean[] validPoints = new boolean[steps + 1];
 
                     for (int i = 0; i <= steps; i++) {
-                        if (renderVersion.get() != currentVersion) return; // Abort if user dragged
+                        if (renderVersion.get() != currentVersion) return;
 
                         double t = tMin + (i * dt);
                         double x, y;

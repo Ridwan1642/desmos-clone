@@ -193,7 +193,7 @@ public class Menu extends VBox {
             }
         });
 
-        // VISIBILITY LOGIC (Targeting Circle shape directly)
+
         boolean[] isVisible = {true};
         visibilityBtn.setOnAction(e -> {
             isVisible[0] = !isVisible[0];
@@ -212,7 +212,6 @@ public class Menu extends VBox {
             }
         });
 
-        // COLOR PICKER LOGIC
         colorPicker.setOnAction(e -> {
             Color newColor = colorPicker.getValue();
             if (isVisible[0]) visibilityCircle.setFill(newColor);
@@ -247,6 +246,46 @@ public class Menu extends VBox {
 
             if (data instanceof GraphFunction) {
                 GraphFunction func = (GraphFunction) data;
+                if (func.getType() == GraphFunction.Type.PARAMETRIC || func.getType() == GraphFunction.Type.POLAR) {
+                    HBox domainBox = new HBox(8);
+                    domainBox.setAlignment(Pos.CENTER_LEFT);
+
+                    String varName = func.getType() == GraphFunction.Type.PARAMETRIC ? "t" : "θ";
+
+                    String startMin = Math.abs(func.getTMin() - 0) < 0.001 ? "0" : String.format("%.2f", func.getTMin());
+                    String startMax = Math.abs(func.getTMax() - (12 * Math.PI)) < 0.001 ? "12pi" : String.format("%.2f", func.getTMax());
+
+                    TextField minField = new TextField(startMin);
+                    minField.setPrefWidth(60);
+                    minField.setStyle(isDarkMode ? "-fx-background-color: transparent; -fx-text-fill: white; -fx-border-color: #475569; -fx-border-radius: 4;" : "-fx-background-color: transparent; -fx-border-color: #cbd5e1; -fx-border-radius: 4;");
+
+                    Label domainLabel = new Label(" ≤  " + varName + "  ≤ ");
+                    domainLabel.setStyle(isDarkMode ? "-fx-text-fill: white; -fx-font-weight: bold;" : "-fx-text-fill: #334155; -fx-font-weight: bold;");
+
+                    TextField maxField = new TextField(startMax);
+                    maxField.setPrefWidth(60);
+                    maxField.setStyle(isDarkMode ? "-fx-background-color: transparent; -fx-text-fill: white; -fx-border-color: #475569; -fx-border-radius: 4;" : "-fx-background-color: transparent; -fx-border-color: #cbd5e1; -fx-border-radius: 4;");
+
+                    domainBox.getChildren().addAll(minField, domainLabel, maxField);
+                    sliderBox.getChildren().add(domainBox);
+
+                    javafx.beans.value.ChangeListener<String> boundsListener = (obs, oldV, newV) -> {
+                        org.mariuszgromada.math.mxparser.Expression minE = new org.mariuszgromada.math.mxparser.Expression(minField.getText().trim());
+                        org.mariuszgromada.math.mxparser.Expression maxE = new org.mariuszgromada.math.mxparser.Expression(maxField.getText().trim());
+
+                        double minVal = minE.calculate();
+                        double maxVal = maxE.calculate();
+
+                        if (!Double.isNaN(minVal) && !Double.isNaN(maxVal) && minVal < maxVal) {
+                            func.setTMin(minVal);
+                            func.setTMax(maxVal);
+                            canvas.redraw();
+                        }
+                    };
+
+                    minField.textProperty().addListener(boundsListener);
+                    maxField.textProperty().addListener(boundsListener);
+                }
                 for (org.mariuszgromada.math.mxparser.Argument arg : func.getParameters()) {
                     Slider slider = new Slider(-10, 10, 1);
                     HBox.setHgrow(slider, Priority.ALWAYS);
@@ -272,7 +311,7 @@ public class Menu extends VBox {
                             if (val < slider.getMin()) slider.setMin(val - Math.abs(val * 0.5));
                             if (val > slider.getMax()) slider.setMax(val + Math.abs(val * 0.5));
 
-                            slider.setValue(val); // Setting this triggers the listener above to redraw!
+                            slider.setValue(val);
                         } catch (NumberFormatException ex) {
                             valueField.setText(String.format("%.2f", slider.getValue()));
                         }

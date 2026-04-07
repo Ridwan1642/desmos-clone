@@ -15,7 +15,6 @@ public class IntegralCalculator extends VBox {
     private final GraphCanvas canvas;
     private Label error;
 
-    // --- NEW: A timer to prevent the math from freezing the UI ---
     private final javafx.animation.PauseTransition mathDebouncer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(100));
 
     public IntegralCalculator(Menu menu, GraphCanvas canvas) {
@@ -144,7 +143,6 @@ public class IntegralCalculator extends VBox {
         error = new Label("");
         error.getStyleClass().add("error-label");
 
-        // --- MATH LOGIC ---
         calcBtn.setOnAction(e -> {
             try {
                 int f1SelIdx = f1Dropdown.getSelectionModel().getSelectedIndex();
@@ -185,15 +183,12 @@ public class IntegralCalculator extends VBox {
                 resValue.setText(String.format("≈ %.4f units²", initialArea));
                 error.setText("");
 
-                // --- ADVANCED ASYNCHRONOUS DRAGGING ---
                 ShadedRegion region = new ShadedRegion(f1, f2, a, b, f1.getColor(), isRespectToY);
                 canvas.setInteractiveIntegration(region, (newA, newB) -> {
-                    // 1. Instantly update the input boxes so UI feels perfectly responsive
                     aInput.setText(String.format("%.2f", newA));
                     bInput.setText(String.format("%.2f", newB));
-                    resValue.setText("Calculating..."); // Visual feedback
+                    resValue.setText("Calculating...");
 
-                    // 2. Debounce and run heavy math on a background thread!
                     mathDebouncer.setOnFinished(event -> {
                         new Thread(() -> {
                             double dynamicArea = 0.0;
@@ -226,18 +221,47 @@ public class IntegralCalculator extends VBox {
         this.getChildren().addAll(axisSelection, grid, btnGrid, resultCard, error);
     }
 
-    // --- MATH HELPERS ---
-
     private double calculateNumericalArea(GraphFunction f1, GraphFunction f2, double a, double b, boolean isRespectToY) {
         int n = 10000;
         double min = Math.min(a, b); double max = Math.max(a, b);
         double h = (max - min) / n; double totalArea = 0.0;
 
+        double trackX1 = 0.1;
+        double trackX2 = 0.1;
+
         for (int i = 0; i < n; i++) {
             double v1 = min + (i * h); double v2 = min + ((i + 1) * h);
-            double y1 = Math.abs(f1.evaluate(v1) - ((f2 != null) ? f2.evaluate(v1) : 0));
-            double y2 = Math.abs(f1.evaluate(v2) - ((f2 != null) ? f2.evaluate(v2) : 0));
-            if (!Double.isNaN(y1) && !Double.isNaN(y2)) totalArea += (h / 2.0) * (y1 + y2);
+            double y1, y2;
+
+            if (isRespectToY) {
+                trackX1 = f1.inverseEvaluate(v1, trackX1);
+                double currentX1 = trackX1;
+
+                double currentF2_v1 = 0;
+                if (f2 != null) {
+                    trackX2 = f2.inverseEvaluate(v1, trackX2);
+                    currentF2_v1 = trackX2;
+                }
+                y1 = Math.abs(currentX1 - currentF2_v1);
+
+                trackX1 = f1.inverseEvaluate(v2, trackX1);
+                double nextX1 = trackX1;
+
+                double nextF2_v2 = 0;
+                if (f2 != null) {
+                    trackX2 = f2.inverseEvaluate(v2, trackX2);
+                    nextF2_v2 = trackX2;
+                }
+                y2 = Math.abs(nextX1 - nextF2_v2);
+
+            } else {
+                y1 = Math.abs(f1.evaluate(v1) - ((f2 != null) ? f2.evaluate(v1) : 0));
+                y2 = Math.abs(f1.evaluate(v2) - ((f2 != null) ? f2.evaluate(v2) : 0));
+            }
+
+            if (!Double.isNaN(y1) && !Double.isNaN(y2)) {
+                totalArea += (h / 2.0) * (y1 + y2);
+            }
         }
         return totalArea;
     }
