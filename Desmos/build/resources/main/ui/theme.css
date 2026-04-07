@@ -1,0 +1,579 @@
+/* --- base (Light Mode) Styles --- */
+.root {
+    -fx-font-family: "Segoe UI", "Open Sans", sans-serif;
+}
+
+.panel-background {
+    -fx-background-color: white;
+    -fx-padding: 15;
+}
+/* Add to Base Styles */
+.toolbar-background {
+    -fx-background-color: #2b2b2b;
+    -fx-padding: 10 20 10 20;
+    -fx-border-color: #444;
+    -fx-border-width: 0 0 1 0;
+}
+
+.nav-button {
+    -fx-background-color: #333;
+    -fx-text-fill: #e0e0e0;
+    -fx-cursor: hand;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.nav-button:hover {
+    -fx-background-color: #505050; /* Replaces the setOnMouseEntered logic */
+}
+
+.icon-button {
+    -fx-background-color: transparent;
+    -fx-cursor: hand;
+    -fx-font-size: 30px;
+    -fx-padding: 5 10 5 10;
+}
+
+/* CheckBox text alignment fix */
+.check-box {
+    -fx-font-size: 15px;
+    -fx-text-fill: black;
+}
+.dark-theme .check-box {
+    -fx-text-fill: white;
+}
+.menu-background {
+    -fx-background-color: transparent;
+}
+
+.title-label {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #9C27B0; /* Purple */
+}
+
+.standard-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: black;
+}
+
+.error-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: red;
+}
+
+.input-field {
+    -fx-font-size: 18px;
+    -fx-background-color: white;
+    -fx-text-fill: black;
+    -fx-border-color: #ccc;
+    -fx-border-radius: 3;
+}
+
+.action-button {
+    -fx-font-size: 16px;
+    -fx-cursor: hand;
+    -fx-padding: 5 15 5 15;
+}
+
+/* --- Dark Mode Overrides --- */
+.dark-theme .panel-background {
+    -fx-background-color: #404040;
+}
+
+.dark-theme .menu-background {
+    -fx-background-color: #404040;
+}
+
+.dark-theme .title-label {
+    -fx-text-fill: #E040FB; /* Lighter purple for dark background */
+}
+
+.dark-theme .standard-label {
+    -fx-text-fill: white;
+}
+
+.dark-theme .error-label {
+    -fx-text-fill: #ff6b6b; /* Softer red */
+}
+
+.dark-theme .input-field {
+    -fx-background-color: black;
+    -fx-text-fill: white;
+    -fx-border-color: #555;
+}
+
+/* --- Global Typography --- */
+.label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #374151; /* Dark gray, softer than pure black */
+    -fx-font-weight: bold;
+}
+
+/* --- Modern ComboBox Styling --- */
+.combo-box {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d1d5db; /* Light gray border */
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-padding: 4 8 4 8; /* Thicker padding for a modern feel */
+    -fx-font-size: 14px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.03), 4, 0, 0, 1);
+}
+
+/* Subtle hover and focus effect for the outline */
+.combo-box:hover, .combo-box:focused {
+    -fx-border-color: #8b5cf6; /* Modern purple accent */
+}
+
+/* Fix the inner text color and background */
+.combo-box .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #1f2937;
+}
+
+/* Flatten the default arrow button */
+.combo-box .arrow-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0 8 0 0;
+}
+.combo-box .arrow {
+    -fx-background-color: #6b7280;
+}
+
+/* Style the dropdown menu list that pops open */
+.combo-box-popup .list-view {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 8, 0, 0, 4);
+}
+
+/* Hover effect for dropdown items */
+.combo-box-popup .list-view .list-cell:hover {
+    -fx-background-color: #f3e8ff; /* Faint purple highlight */
+    -fx-text-fill: #8b5cf6;
+}
+
+/* --- Action Button Upgrades --- */
+.button {
+    -fx-background-color: #8b5cf6; /* Solid modern purple */
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 6 16 6 16;
+    -fx-cursor: hand;
+    -fx-border-color: transparent;
+}
+
+.button:hover {
+    -fx-background-color: #7c3aed; /* Darker purple on hover */
+}
+
+/* Clean disabled state (fixes the ugly grey box) */
+.button:disabled {
+    -fx-background-color: #e5e7eb;
+    -fx-text-fill: #9ca3af;
+    -fx-cursor: default;
+}
+
+/* --- Calculator Dialog Base --- */
+.calc-dialog-bg {
+    /* Changed to a very clean, bright pearl/off-white */
+    -fx-background-color: #f8fafc;
+    -fx-padding: 25;
+    /* Changed font to a modern stack (Inter/Roboto) */
+    -fx-font-family: "Inter", "Roboto", "Segoe UI", sans-serif;
+}
+
+.dark-theme .calc-dialog-bg {
+    /* A deep, rich dark bluish-gray */
+    -fx-background-color: #0f172a;
+}
+
+/* --- Labels --- */
+.calc-label {
+    -fx-font-size: 13px;
+    -fx-text-fill: #334155;
+    -fx-font-weight: bold; /* Added slight weight for readability */
+}
+.dark-theme .calc-label {
+    -fx-text-fill: #cbd5e1;
+}
+
+/* --- Buttons --- */
+.primary-btn {
+    /* New Indigo accent color */
+    -fx-background-color: #4f46e5;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6; /* Slightly less rounded for a sharper look */
+    -fx-padding: 8 20 8 20;
+    -fx-cursor: hand;
+}
+.primary-btn:hover {
+    -fx-background-color: #4338ca;
+}
+
+.secondary-btn {
+    -fx-background-color: transparent;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 6;
+    -fx-text-fill: #64748b;
+    -fx-font-size: 14px;
+    -fx-padding: 7 20 7 20;
+    -fx-cursor: hand;
+    -fx-font-weight: bold;
+}
+.secondary-btn:hover {
+    -fx-background-color: #e2e8f0;
+}
+.dark-theme .secondary-btn {
+    -fx-text-fill: #94a3b8;
+    -fx-border-color: #475569;
+}
+.dark-theme .secondary-btn:hover {
+    -fx-background-color: #1e293b;
+}
+
+/* --- Result Card --- */
+.result-card {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: #e2e8f0;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 8); /* Softer, larger shadow */
+}
+.dark-theme .result-card {
+    -fx-background-color: #1e293b;
+    -fx-border-color: #334155;
+}
+
+.result-header {
+    -fx-background-color: #4f46e5; /* Matches the primary button */
+    -fx-background-radius: 7 7 0 0;
+    -fx-padding: 10;
+    -fx-alignment: center;
+}
+.result-header-text {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+
+.result-value {
+    -fx-font-size: 26px; /* Slightly larger */
+    -fx-font-weight: bold;
+    -fx-text-fill: #0f172a;
+    -fx-padding: 15 0 5 0;
+    -fx-alignment: center;
+}
+.dark-theme .result-value {
+    -fx-text-fill: white;
+}
+
+.result-formula {
+    -fx-font-size: 14px;
+    -fx-text-fill: #64748b;
+    -fx-font-style: italic;
+    -fx-padding: 0 0 15 0;
+    -fx-alignment: center;
+}
+.dark-theme .result-formula {
+    -fx-text-fill: #94a3b8;
+}
+
+/* --- Menu Sidebar Base --- */
+.menu-sidebar {
+    -fx-background-color: #f4f5f8; /* Pleasing soft gray for Light Mode */
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 0 1 0 0;
+}
+.dark-theme .menu-sidebar {
+    -fx-background-color: #1e1e1e; /* Deep dark mode */
+    -fx-border-color: #333333;
+}
+
+/* --- Function Rows --- */
+.function-row {
+    -fx-background-color: white;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 8;
+}
+.dark-theme .function-row {
+    -fx-background-color: #2b2b2b;
+    -fx-border-color: #444444;
+}
+
+/* --- Row Numbers --- */
+.row-number {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #999999;
+}
+
+/* --- Math Input Field --- */
+.math-input {
+    -fx-font-family: "Cambria Math", "Times New Roman", serif;
+    -fx-font-size: 20px;
+    -fx-font-style: italic; /* Makes it look like algebraic math */
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: black;
+}
+.math-input:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+.dark-theme .math-input {
+    -fx-text-fill: white;
+}
+
+/* --- Icon Buttons (Eye & Cross) --- */
+.icon-btn {
+    -fx-background-color: transparent;
+    -fx-font-size: 16px;
+    -fx-cursor: hand;
+    -fx-padding: 4 8 4 8;
+    -fx-background-radius: 4;
+}
+.icon-btn:hover {
+    -fx-background-color: #e2e8f0;
+}
+.dark-theme .icon-btn:hover {
+    -fx-background-color: #334155;
+}
+
+/* --- Color Picker Icon Hack --- */
+.icon-color-picker {
+    -fx-color-label-visible: false; /* Hides the hex code text */
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+.icon-color-picker > .color-picker-label {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+/* Completely hide the dropdown arrow */
+.icon-color-picker .arrow-button,
+.icon-color-picker .arrow-button .arrow {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-shape: null;
+}
+
+/* --- Menu Sidebar Base --- */
+.menu-sidebar {
+    -fx-background-color: #f0f2f5; /* Pleasing soft gray */
+    -fx-border-color: #d1d5db;
+    -fx-border-width: 0 1 0 0;
+}
+.dark-theme .menu-sidebar {
+    -fx-background-color: #111827;
+    -fx-border-color: #374151;
+}
+
+/* --- Function Rows --- */
+.function-row {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e5e7eb;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 10 5 10 5;
+}
+.dark-theme .function-row {
+    -fx-background-color: #1f2937;
+    -fx-border-color: #374151;
+}
+
+/* --- Typography --- */
+.row-number {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #9ca3af;
+}
+
+.math-input {
+    -fx-font-family: "Cambria Math", "Times New Roman", serif;
+    -fx-font-size: 20px;
+    -fx-font-style: italic; /* Mimics algebraic notation */
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: #111827;
+}
+.math-input:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+.dark-theme .math-input {
+    -fx-text-fill: #f9fafb;
+}
+
+/* --- Strict Icon Button Styling --- */
+.icon-btn {
+    -fx-background-color: transparent;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-padding: 0; /* Prevents the ... truncation */
+}
+.icon-btn:hover {
+    -fx-background-color: #e5e7eb;
+    -fx-background-radius: 4;
+}
+.dark-theme .icon-btn:hover {
+    -fx-background-color: #374151;
+}
+
+/* --- Minimal Color Picker Hack --- */
+.icon-color-picker {
+    -fx-color-label-visible: false;
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-background-radius: 4;
+}
+.icon-color-picker .color-picker-label {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+.icon-color-picker .arrow-button,
+.icon-color-picker .arrow-button .arrow {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-shape: null; /* Completely removes the dropdown arrow */
+}
+
+/* --- TableView Modernization --- */
+.table-view {
+    -fx-background-color: transparent;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+.dark-theme .table-view {
+    -fx-border-color: #475569;
+}
+
+/* Header Styling */
+.table-view .column-header-background {
+    -fx-background-color: #f8fafc;
+    -fx-background-radius: 6 6 0 0;
+}
+.dark-theme .table-view .column-header-background {
+    -fx-background-color: #1e293b;
+}
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-size: 35px;
+}
+.table-view .column-header .label {
+    -fx-text-fill: #64748b;
+    -fx-font-weight: bold;
+    -fx-alignment: center; /* Centers the X and Y titles */
+}
+.dark-theme .table-view .column-header .label {
+    -fx-text-fill: #cbd5e1;
+}
+
+/* Row Styling & Hover Effects */
+.table-row-cell {
+    -fx-background-color: white;
+    -fx-border-color: transparent transparent #f1f5f9 transparent;
+    -fx-border-width: 1;
+}
+.dark-theme .table-row-cell {
+    -fx-background-color: #0f172a;
+    -fx-border-color: transparent transparent #1e293b transparent;
+}
+
+/* The Hover Highlight! */
+.table-row-cell:hover {
+    -fx-background-color: #e0e7ff; /* Faint indigo highlight */
+}
+.dark-theme .table-row-cell:hover {
+    -fx-background-color: #334155;
+}
+
+/* Cell Text Alignment & Font */
+.table-view .table-cell {
+    -fx-alignment: center; /* Centers the numbers in the cells */
+    -fx-font-size: 15px;
+    -fx-font-family: "Inter", "Roboto", "Segoe UI", sans-serif;
+    -fx-text-fill: #0f172a;
+}
+.dark-theme .table-view .table-cell {
+    -fx-text-fill: #f8fafc;
+}
+
+/* --- Dialog Background --- */
+.calc-dialog-bg {
+    -fx-background-color: #f8fafc;
+}
+.dark-theme .calc-dialog-bg,
+.dark-theme.calc-dialog-bg {
+    -fx-background-color: #1e293b;
+}
+
+/* --- TableView Modernization --- */
+.table-view {
+    -fx-background-color: transparent;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+.dark-theme .table-view {
+    -fx-border-color: #475569;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #f1f5f9;
+    -fx-background-radius: 6 6 0 0;
+}
+.dark-theme .table-view .column-header-background {
+    -fx-background-color: #0f172a;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-size: 35px;
+}
+.table-view .column-header .label {
+    -fx-text-fill: #475569;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+}
+.dark-theme .table-view .column-header .label {
+    -fx-text-fill: #cbd5e1;
+}
+
+.table-row-cell {
+    -fx-background-color: white;
+    -fx-border-color: transparent transparent #f1f5f9 transparent;
+    -fx-border-width: 1;
+}
+.dark-theme .table-row-cell {
+    -fx-background-color: #1e293b;
+    -fx-border-color: transparent transparent #334155 transparent;
+}
+
+/* The Hover Highlight! */
+.table-row-cell:hover {
+    -fx-background-color: #e0e7ff;
+}
+.dark-theme .table-row-cell:hover {
+    -fx-background-color: #334155;
+}
+
+.table-view .table-cell {
+    -fx-alignment: center;
+    -fx-font-size: 15px;
+    -fx-text-fill: #0f172a;
+}
+.dark-theme .table-view .table-cell {
+    -fx-text-fill: #f8fafc;
+}
