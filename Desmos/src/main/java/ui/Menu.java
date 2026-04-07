@@ -16,7 +16,6 @@ import javafx.scene.input.KeyCode;
 import math.GraphFunction;
 
 public class Menu extends VBox {
-    // --- HARMONIZED DICTIONARY ---
     private static final String NORMAL_CHARS = "0123456789xyn+-().t";
     private static final String SUPER_CHARS  = "⁰¹²³⁴⁵⁶⁷⁸⁹ˣʸⁿ⁺⁻⁽⁾·ᵗ";
 
@@ -61,6 +60,11 @@ public class Menu extends VBox {
     public void setDarkMode(boolean dark) {
         this.isDarkMode = dark;
         canvas.setDarkMode(dark);
+        for (TextField tf : textFields) {
+            if (!tf.getText().startsWith("Error:")) {
+                tf.setStyle("-fx-text-fill: " + (dark ? "white" : "black") + "; -fx-font-size: 18px;");
+            }
+        }
     }
 
     public Color getNextPaletteColor() {
@@ -82,7 +86,6 @@ public class Menu extends VBox {
         numberLabel.getStyleClass().add("row-number");
         numberLabel.setMinWidth(20);
 
-        // 1. VISIBILITY ICON (Perfect Circle Graphic)
         Button visibilityBtn = new Button();
         javafx.scene.shape.Circle visibilityCircle = new javafx.scene.shape.Circle(7, assignedColor);
         visibilityBtn.setGraphic(visibilityCircle);
@@ -90,19 +93,16 @@ public class Menu extends VBox {
         visibilityBtn.setMaxSize(26, 26);
         visibilityBtn.getStyleClass().add("icon-btn");
 
-        // 2. COLOR PICKER ICON
         ColorPicker colorPicker = new ColorPicker(assignedColor);
         colorPicker.setMinSize(28, 28);
         colorPicker.setMaxSize(28, 28);
         colorPicker.getStyleClass().add("icon-color-picker");
 
-        // 3. TEXT FIELD
         TextField input = new TextField();
         input.getStyleClass().add("math-input");
         HBox.setHgrow(input, Priority.ALWAYS);
         input.setPromptText("y = ...");
 
-        // 4. DELETE ICON
         Button removeBtn = new Button("X");
         removeBtn.setMinSize(26, 26);
         removeBtn.setMaxSize(26, 26);
@@ -120,11 +120,6 @@ public class Menu extends VBox {
         textFields.add(input);
         input.getProperties().put("colorPicker", colorPicker);
 
-        input.setOnMouseClicked(e -> {
-            if (textFields.indexOf(input) == textFields.size() - 1) setTextField();
-        });
-
-        // DESMOS-STYLE "EXIT EXPONENT" (Right Arrow)
         input.setOnKeyPressed(e -> {
             if (e.getCode() == KeyCode.RIGHT) {
                 int caret = input.getCaretPosition();
@@ -140,10 +135,15 @@ public class Menu extends VBox {
             }
         });
 
-        // REAL-TIME DRAWING & "STICKY" SUPERSCRIPT ALGORITHM
         input.textProperty().addListener((obs, oldText, newText) -> {
-            error.setText("");
             if (newText == null) return;
+            if (newText.startsWith("Error:")) {
+                return;
+            }
+
+            String defaultColor = isDarkMode ? "white" : "black";
+            input.setStyle("-fx-text-fill: " + defaultColor + "; -fx-font-size: 18px;");
+            error.setText("");
 
             String replaced = newText;
             for (int i = 0; i < NORMAL_CHARS.length(); i++) {
@@ -172,6 +172,20 @@ public class Menu extends VBox {
                     input.positionCaret(Math.max(0, originalCaret - diff));
                 });
                 return;
+            }
+
+            String checkStr = replaced.trim();
+            if (checkStr.contains("=")) {
+                String leftSide = checkStr.substring(0, checkStr.indexOf('=')).trim();
+
+                if (leftSide.matches(".*(^|[^a-zA-Z])r([^a-zA-Z]|$).*") && !leftSide.equals("r")) {
+                    javafx.application.Platform.runLater(() -> {
+                        input.setText("Error: Invalid Polar");
+                        input.setStyle("-fx-text-fill: red; -fx-font-size: 18px;");
+                        input.selectAll();
+                    });
+                    return;
+                }
             }
 
             if (onSubmit != null && !newText.trim().isEmpty()) {
@@ -219,7 +233,6 @@ public class Menu extends VBox {
             canvas.redraw();
         });
 
-        // SLIDER GENERATION: Happens on 'Enter'
         input.setOnAction(e -> {
             int currentIndex = textFields.indexOf(input);
             if (currentIndex == textFields.size() - 1 && !input.getText().trim().isEmpty()) {
@@ -252,7 +265,24 @@ public class Menu extends VBox {
                         valueField.setText(String.format("%.2f", newNum.doubleValue()));
                         canvas.redraw();
                     });
+                    valueField.setOnAction(ev -> {
+                        try {
+                            double val = Double.parseDouble(valueField.getText().trim());
 
+                            if (val < slider.getMin()) slider.setMin(val - Math.abs(val * 0.5));
+                            if (val > slider.getMax()) slider.setMax(val + Math.abs(val * 0.5));
+
+                            slider.setValue(val); // Setting this triggers the listener above to redraw!
+                        } catch (NumberFormatException ex) {
+                            valueField.setText(String.format("%.2f", slider.getValue()));
+                        }
+                    });
+
+                    valueField.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+                        if (!isNowFocused) {
+                            valueField.fireEvent(new javafx.event.ActionEvent());
+                        }
+                    });
                     HBox sRow = new HBox(8, sLabel, valueField, slider);
                     sRow.setAlignment(Pos.CENTER_LEFT);
                     sliderBox.getChildren().add(sRow);

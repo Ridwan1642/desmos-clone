@@ -124,12 +124,10 @@ public class BestFitDialog extends Dialog<String> {
         if (calcNode != null) {
             calcNode.getStyleClass().add("primary-btn");
 
-            // NEW: Intercept the Calculate click!
             calcNode.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
                 table.edit(-1, null); // Force commit any active typing
                 String result = processInputAndCalculate();
 
-                // If it's an error, show it and STOP the dialog from closing
                 if (result.startsWith("Error:")) {
                     errorLabel.setText(result);
                     event.consume();
@@ -144,7 +142,6 @@ public class BestFitDialog extends Dialog<String> {
 
         setResultConverter(dialogButton -> {
             if (dialogButton == calculateButtonType) {
-                // We only reach this if the event filter above didn't consume the event!
                 return processInputAndCalculate();
             }
             return null;
@@ -187,5 +184,19 @@ public class BestFitDialog extends Dialog<String> {
         }
 
         return calculateLeastSquares.calculateBestFitLine(xVals, yVals);
+    }
+
+    public List<double[]> getParsedPoints() {
+        List<double[]> points = new ArrayList<>();
+        for (DataPoint dp : dataPoints) {
+            try {
+                if (dp.getX() != null && dp.getY() != null && !dp.getX().trim().isEmpty() && !dp.getY().trim().isEmpty()) {
+                    double x = Double.parseDouble(dp.getX().trim());
+                    double y = Double.parseDouble(dp.getY().trim());
+                    points.add(new double[]{x, y});
+                }
+            } catch (NumberFormatException ignored) {}
+        }
+        return points;
     }
 }

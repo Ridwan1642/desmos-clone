@@ -1,5 +1,6 @@
 package ui;
 
+import javafx.animation.PauseTransition;
 import javafx.scene.paint.Color;
 import model.Coordinate_System;
 import javafx.scene.canvas.Canvas;
@@ -11,6 +12,7 @@ import math.GraphFunction;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.text.Font;
 import javafx.scene.transform.Scale;
+
 
 public class GraphCanvas extends Canvas {
 
@@ -28,13 +30,18 @@ public class GraphCanvas extends Canvas {
     private boolean isDarkMode = false;
 
     private double totalDragX = 0, totalDragY = 0;
-    // --- NEW: INTERACTIVE INTEGRATION FIELDS ---
     private ShadedRegion activeRegion = null;
-    private String draggingBound = null; // Stores "a" or "b"
+    private String draggingBound = null;
     private java.util.function.BiConsumer<Double, Double> onBoundsChanged = null;
 
-    private javafx.animation.PauseTransition zoomTimer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(50));
-    private javafx.animation.PauseTransition dragTimer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(30)); // ~33 FPS limit
+    private double introProgress = 1.0;
+
+    public void setIntroProgress(double progress){
+        this.introProgress = progress;
+    }
+
+    private PauseTransition zoomTimer = new PauseTransition(javafx.util.Duration.millis(50));
+    private PauseTransition dragTimer = new PauseTransition(javafx.util.Duration.millis(30));
     public GraphCanvas(Coordinate_System coordSystem, GridRenderer gridRenderer) {
         this.coordSystem = coordSystem;
         this.gridRenderer = gridRenderer;
@@ -58,7 +65,6 @@ public class GraphCanvas extends Canvas {
             lastMouseY = e.getY();
             draggingBound = null;
 
-            // NEW: Check if the mouse is "grabbing" a boundary line!
             if (activeRegion != null) {
                 double tolerance = 15; // 15 pixel grab radius
                 if (!activeRegion.isRespectToY) {
@@ -90,7 +96,6 @@ public class GraphCanvas extends Canvas {
         });
 
         setOnMouseDragged(e -> {
-            // NEW: If dragging a bound, update area dynamically and STOP the canvas from panning!
             if (draggingBound != null && activeRegion != null && onBoundsChanged != null) {
                 if (!activeRegion.isRespectToY) {
                     double newWorldX = coordSystem.screenToWorldX(e.getX());
@@ -102,7 +107,7 @@ public class GraphCanvas extends Canvas {
                     else activeRegion.b = newWorldY;
                 }
                 onBoundsChanged.accept(activeRegion.a, activeRegion.b);
-                dragTimer.playFromStart(); // Debounced drawing!
+                dragTimer.playFromStart();
                 return;
             }
             double dx = e.getX() - lastMouseX;
@@ -221,6 +226,13 @@ public class GraphCanvas extends Canvas {
                 totalDragY = 0;
             });
         }
+    }
+    public void clearScatterPoints() {
+        graphRenderer.clearScatterPoints();
+    }
+
+    public void addScatterPoint(double x, double y, Color c) {
+        graphRenderer.addScatterPoint(x, y, c);
     }
 
     private void drawMouseCoordinates() {

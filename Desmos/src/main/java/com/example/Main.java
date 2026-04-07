@@ -2,6 +2,7 @@ package com.example;
 
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.*;
 import model.Coordinate_System;
@@ -66,16 +67,16 @@ public class Main extends Application {
         StackPane superRoot = new StackPane(root);
 
         Button homeButton = new Button("🏡");
+        homeButton.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 30px; -fx-padding: 5 10 5 10;");
         homeButton.getStyleClass().add("icon-button");
         AnchorPane.setTopAnchor(homeButton, 15.0);
         AnchorPane.setRightAnchor(homeButton, 15.0);
 
         homeButton.setOnAction(e -> {
-            viewport.reset();
-            coordSystem.enforceAspectRatio(canvas.getWidth(), canvas.getHeight());
+            coordSystem.getViewport().reset(-10, 10, -10, 10);
             canvas.redraw();
         });
-
+        canvasContainer.getChildren().add(homeButton);
 
         menu = new Menu((inputField, color) -> {
             try {
@@ -140,6 +141,7 @@ public class Main extends Application {
                 themeBtn.setText("🌙 Dark Mode");
             }
             canvas.setDarkMode(isDarkMode);
+            menu.setDarkMode(isDarkMode);
         });
 
         Region spacer = new Region();
@@ -163,19 +165,27 @@ public class Main extends Application {
                     TextField newRow = menu.setTextField();
                     newRow.setText(equation);
                     newRow.fireEvent(new ActionEvent(ActionEvent.ACTION, newRow));
+
+                    ColorPicker rowColorPicker = (ColorPicker) newRow.getProperties().get("colorPicker");
+                    Color pointColor = rowColorPicker != null ? rowColorPicker.getValue() : Color.DODGERBLUE;
+
+                    for (double[] pt : dialog.getParsedPoints()) {
+                        canvas.addScatterPoint(pt[0], pt[1], pointColor);
+                    }
+
+                    canvas.redraw();
                 }
             });
         });
 
-        // --- NEW: THE MISSING REFRESH CALLS ---
         slopeBtn.setOnAction(e -> {
-            slopeCalculator.refresh(); // Syncs the UI BEFORE opening to prevent ghost indices!
+            slopeCalculator.refresh();
             if (slopeStage.isShowing()) slopeStage.toFront();
             else slopeStage.show();
         });
 
         integralBtn.setOnAction(e -> {
-            integralCalculator.refresh(); // Syncs the UI BEFORE opening
+            integralCalculator.refresh();
             if (integralStage.isShowing()) integralStage.toFront();
             else integralStage.show();
         });
@@ -221,23 +231,26 @@ public class Main extends Application {
         glow.setSpread(0.2);
         mathPath.setEffect(glow);
 
-        mathPath.getElements().add(new MoveTo(0, 300));
-        for (int i = 1; i <= 800; i++) {
-            double amplitude = 150 * Math.exp(-i * 0.003);
-            double y = 300 + Math.sin(i * 0.05) * amplitude;
+        // --- FIXED SCALING: Center at y=350 (half of 700) and stretch to x=2000 ---
+        mathPath.getElements().add(new MoveTo(0, 350));
+        for (int i = 1; i <= 2000; i++) {
+            // Wider wave, longer decay to stretch beautifully across modern screens
+            double amplitude = 200 * Math.exp(-i * 0.002);
+            double y = 350 + Math.sin(i * 0.02) * amplitude;
             mathPath.getElements().add(new LineTo(i, y));
         }
 
-        double pathLength = 2000;
+        // Increase path length dash to accommodate the 2000px stretch
+        double pathLength = 4000;
         mathPath.getStrokeDashArray().setAll(pathLength);
         mathPath.setStrokeDashOffset(pathLength);
 
         Text title = new Text("DESMOS ++");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 50));
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 60)); // Made slightly larger!
         title.setFill(Color.WHITE);
 
         Text subtitle = new Text("Interactive Math Engine");
-        subtitle.setFont(Font.font("Segoe UI", FontWeight.LIGHT, 20));
+        subtitle.setFont(Font.font("Segoe UI", FontWeight.LIGHT, 24));
         subtitle.setFill(Color.web("#aaaaaa"));
 
         VBox titleBox = new VBox(5, title, subtitle);
@@ -249,16 +262,16 @@ public class Main extends Application {
 
         Timeline drawCurve = new Timeline(
                 new KeyFrame(Duration.ZERO, new KeyValue(mathPath.strokeDashOffsetProperty(), pathLength)),
-                new KeyFrame(Duration.seconds(2.5), new KeyValue(mathPath.strokeDashOffsetProperty(), 0, Interpolator.EASE_OUT))
+                new KeyFrame(Duration.seconds(2.3), new KeyValue(mathPath.strokeDashOffsetProperty(), 0, Interpolator.EASE_OUT))
         );
 
-        FadeTransition textFade = new FadeTransition(Duration.seconds(1.5), titleBox);
+        FadeTransition textFade = new FadeTransition(Duration.seconds(1.0), titleBox);
         textFade.setFromValue(0);
         textFade.setToValue(1);
 
-        ScaleTransition textScale = new ScaleTransition(Duration.seconds(1.5), titleBox);
-        textScale.setFromX(0.9);
-        textScale.setFromY(0.9);
+        ScaleTransition textScale = new ScaleTransition(Duration.seconds(1.0), titleBox);
+        textScale.setFromX(0.8);
+        textScale.setFromY(0.8);
         textScale.setToX(1);
         textScale.setToY(1);
 
@@ -268,10 +281,14 @@ public class Main extends Application {
         splashFadeOut.setFromValue(1);
         splashFadeOut.setToValue(0);
 
+        PauseTransition erasePath = new PauseTransition(Duration.millis(50));
+        erasePath.setOnFinished(e -> pathContainer.setVisible(false));
+
         SequentialTransition sequence = new SequentialTransition(
                 drawCurve,
+                erasePath,
                 textAnim,
-                new PauseTransition(Duration.seconds(0.8)),
+                new PauseTransition(Duration.seconds(1.2)),
                 splashFadeOut
         );
 

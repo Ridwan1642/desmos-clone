@@ -74,6 +74,12 @@ public class Viewport {
         this.yMax = 10;
     }
 
+    public void reset(double defaultXMin, double defaultXMax, double defaultYMin, double defaultYMax) {
+        this.xMin = defaultXMin;
+        this.xMax = defaultXMax;
+        this.yMin = defaultYMin;
+        this.yMax = defaultYMax;
+    }
 }
 
 

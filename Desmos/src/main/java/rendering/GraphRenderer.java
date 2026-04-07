@@ -36,7 +36,7 @@ public class GraphRenderer {
     private List<KeyPoint> dynamicIntercepts = new ArrayList<>();
     private List<KeyPoint> tangentPoints = new ArrayList<>();
     private List<TangentLine> tangentLines = new ArrayList<>();
-
+    private List<KeyPoint> scatterPoints = new ArrayList<>();
     private double lineWidth = 2;
     private int res = 1;
     private final AtomicInteger renderVersion = new AtomicInteger(0);
@@ -65,6 +65,14 @@ public class GraphRenderer {
         List<KeyPoint> all = new ArrayList<>(dynamicIntercepts);
         all.addAll(tangentPoints);
         return all;
+    }
+
+    public void addScatterPoint(double x, double y, Color c) {
+        scatterPoints.add(new KeyPoint(x, y, c));
+    }
+
+    public void clearScatterPoints() {
+        scatterPoints.clear();
     }
 
     public void addShadedRegion(ShadedRegion region) {
@@ -210,8 +218,11 @@ public class GraphRenderer {
 
             for (GraphFunction function : renderFunctions) {
                 if (function == null || !function.isVisible()) continue;
-                Color funcColor = function.getColor();
-
+                Color tempColor = function.getColor();
+                if (isDarkMode && (tempColor.equals(Color.BLACK) || tempColor.equals(Color.web("#000000")))) {
+                    tempColor = Color.WHITE;
+                }
+                final Color funcColor = tempColor;
                 if (function.getType() == GraphFunction.Type.IMPLICIT) {
                     int cols = (int) (width / res) + 1;
                     int rows = (int) (height / res) + 1;
@@ -251,7 +262,6 @@ public class GraphRenderer {
                         }
                         prevValY = val;
                     }
-
                     drawCalls.add(() -> {
                         gc.save();
                         gc.setStroke(funcColor);
@@ -305,6 +315,37 @@ public class GraphRenderer {
                     });
 
                 } else if (function.getType() == GraphFunction.Type.PARAMETRIC || function.getType() == GraphFunction.Type.POLAR) {
+                    double tMin = 0;
+                    double tMax = 12 * Math.PI;
+                    int steps = 2000;
+                    double dt = (tMax - tMin) / steps;
+
+                    double[] xPoints = new double[steps + 1];
+                    double[] yPoints = new double[steps + 1];
+                    boolean[] validPoints = new boolean[steps + 1];
+
+                    for (int i = 0; i <= steps; i++) {
+                        if (renderVersion.get() != currentVersion) return; // Abort if user dragged
+
+                        double t = tMin + (i * dt);
+                        double x, y;
+
+                        if (function.getType() == GraphFunction.Type.PARAMETRIC) {
+                            x = function.evaluateT(t);
+                            y = function.evaluateParametricY(t);
+                        } else {
+                            double r = function.evaluateT(t);
+                            x = r * Math.cos(t);
+                            y = r * Math.sin(t);
+                        }
+
+                        if (!Double.isNaN(x) && !Double.isNaN(y)) {
+                            xPoints[i] = coordSystem.worldToScreenX(x);
+                            yPoints[i] = coordSystem.worldToScreenY(y);
+                            validPoints[i] = true;
+                        }
+                    }
+
                     drawCalls.add(() -> {
                         gc.save();
                         gc.setStroke(funcColor);
@@ -313,40 +354,19 @@ public class GraphRenderer {
                         gc.setLineJoin(StrokeLineJoin.ROUND);
                         gc.beginPath();
 
-                        double tMin = 0;
-                        double tMax = 12 * Math.PI;
-                        int steps = 2000;
-                        double dt = (tMax - tMin) / steps;
                         boolean isFirstPoint = true;
 
                         for (int i = 0; i <= steps; i++) {
-                            if (renderVersion.get() != currentVersion) return;
-
-                            double t = tMin + (i * dt);
-                            double x, y;
-
-                            if (function.getType() == GraphFunction.Type.PARAMETRIC) {
-                                x = function.evaluateT(t);
-                                y = function.evaluateParametricY(t);
-                            } else {
-                                double r = function.evaluateT(t);
-                                x = r * Math.cos(t);
-                                y = r * Math.sin(t);
-                            }
-
-                            if (Double.isNaN(x) || Double.isNaN(y)) {
+                            if (!validPoints[i]) {
                                 isFirstPoint = true;
                                 continue;
                             }
 
-                            double sx = coordSystem.worldToScreenX(x);
-                            double sy = coordSystem.worldToScreenY(y);
-
                             if (isFirstPoint) {
-                                gc.moveTo(sx, sy);
+                                gc.moveTo(xPoints[i], yPoints[i]);
                                 isFirstPoint = false;
                             } else {
-                                gc.lineTo(sx, sy);
+                                gc.lineTo(xPoints[i], yPoints[i]);
                             }
                         }
                         gc.stroke();
@@ -414,7 +434,6 @@ public class GraphRenderer {
                     drawCall.run();
                 }
 
-                // Draw Tangent Lines
                 for (TangentLine line : tangentLines) {
                     gc.setStroke(line.color);
                     gc.setLineWidth(1.5);
@@ -444,6 +463,16 @@ public class GraphRenderer {
                         gc.setStroke(kp.color);
                         gc.setLineWidth(2);
                         gc.strokeOval(sx - 4, sy - 4, 8, 8);
+                    }
+                }
+
+                for (KeyPoint kp : scatterPoints) {
+                    double sx = coordSystem.worldToScreenX(kp.x);
+                    double sy = coordSystem.worldToScreenY(kp.y);
+
+                    if (sx >= -10 && sx <= width + 10 && sy >= -10 && sy <= height + 10) {
+                        gc.setFill(kp.color);
+                        gc.fillOval(sx - 5, sy - 5, 10, 10);
                     }
                 }
             });

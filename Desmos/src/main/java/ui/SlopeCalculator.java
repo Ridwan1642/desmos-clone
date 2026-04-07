@@ -14,7 +14,7 @@ public class SlopeCalculator extends VBox {
     private final GraphCanvas canvas;
     private Label error;
     private CheckBox drawLineCheck;
-    private CheckBox addToMenuCheck; // --- NEW: The Menu Toggle! ---
+    private CheckBox addToMenuCheck;
 
     public SlopeCalculator(Menu menu, GraphCanvas canvas) {
         this.menu = menu;
@@ -197,11 +197,23 @@ public class SlopeCalculator extends VBox {
                         error.setText("Please enter a valid y coordinate.");
                         return;
                     }
-                    m = slopeMath.findSlope(px, py);
-                    if (Math.abs(f.evaluate(px, py)) > 0.5) {
-                        error.setText("Note: Point is not perfectly on the curve.");
+
+                    double[] snappedPoint = slopeMath.snapToCurve(px, py);
+
+                    if (snappedPoint != null) {
+                        px = snappedPoint[0];
+                        py = snappedPoint[1];
+                        m = slopeMath.findSlope(px, py);
+
+                        double originalY = Double.parseDouble(yInputField.getText().trim());
+                        if (Math.abs(py - originalY) > 0.001) {
+                            error.setText("Snapped guess to curve at y ≈ " + String.format("%.3f", py));
+                        } else {
+                            error.setText("");
+                        }
                     } else {
-                        error.setText("");
+                        m = Double.NaN;
+                        error.setText("Error: Coordinate is too far from the curve to snap.");
                     }
                 }
 

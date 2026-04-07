@@ -32,11 +32,11 @@ public class GraphFunction {
         this.color = color;
         String cleanFormula = preprocessFormula(formula.trim());
 
-        // 1. Strict Hierarchy for equation classification
         if (cleanFormula.startsWith("r=")) {
             type = Type.POLAR;
             isImplicit = false;
-            expression = new Expression(cleanFormula.substring(2).trim(), tArg, thetaArg);
+            String rightSide = cleanFormula.substring(cleanFormula.indexOf("=") + 1).trim();
+            expression = new Expression(rightSide, tArg, thetaArg);
         }
         else if (cleanFormula.startsWith("(") && cleanFormula.endsWith(")") && cleanFormula.contains(",")) {
             type = Type.PARAMETRIC;
@@ -74,11 +74,8 @@ public class GraphFunction {
     }
 
     private void extractParameters(Expression expr) {
-        if (!expr.checkSyntax()) {
-            System.err.println("Syntax Error: " + expr.getErrorMessage());
-            return;
-        }
         String[] missingArgs = expr.getMissingUserDefinedArguments();
+
         if (missingArgs != null) {
             for (String argName : missingArgs) {
                 if (!argName.matches("x|y|t|theta")) {
@@ -90,6 +87,10 @@ public class GraphFunction {
                     }
                 }
             }
+        }
+
+        if (!expr.checkSyntax()) {
+            System.err.println("Syntax Error: " + expr.getErrorMessage());
         }
     }
 
